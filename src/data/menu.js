@@ -11,11 +11,6 @@ export default {
       to: "dashboard",
       icon: "si si-speedometer",
     },
-    {
-      name: "Settings",
-      to: "dashboard",
-      icon: "si si-settings",
-    },
   ],
 
 
