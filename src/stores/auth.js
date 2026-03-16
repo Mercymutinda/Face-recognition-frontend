@@ -371,34 +371,51 @@ export const useAuthStore = defineStore("auth", {
    async login(credentials) {
     this.loading = true;
 
+    // 1. We use your custom useApi hook, but we specifically override the 
+    // Content-Type just for this one request to satisfy FastAPI's OAuth2.
+    const { data: responseData, error: apiError, status, request } = useApi(this.config.loginEndpoint, {
+      method: "POST",
+      autoFetch: false,
+      options: {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        }
+      }
+    });
+
     try {
-      // 1. Format the credentials specifically for FastAPI OAuth2
+      // 2. Format credentials as Form Data (what FastAPI expects)
       const formData = new URLSearchParams();
       formData.append("username", credentials.username);
       formData.append("password", credentials.password);
 
-      // 2. Use raw axios to bypass the global JSON header in axiosInstance
-      const response = await axios.post(
-        import.meta.env.VITE_API_BASE_URL + this.config.loginEndpoint,
-        formData,
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        }
-      );
+      // 3. Fire the request!
+      await request(formData);
 
-      const payload = response.data;
+      // 4. Handle Backend Errors (e.g., 401 Incorrect Password)
+      if (status.value === "error") {
+          let errorMsg = "Login failed. Please check your credentials.";
+          
+          if (apiError.value?.detail) {
+              errorMsg = apiError.value.detail; // Grabs FastAPI's specific error string
+          }
+          
+          // Throw it in the format your SignIn3View.vue expects
+          throw { errorPayload: { message: errorMsg } };
+      }
+
+      // 5. Handle Success
+      const payload = responseData.value?.dataPayload || responseData.value || {};
       const token = payload.access_token;
 
       if (token) {
         const username = credentials.username || credentials.email || "User";
         this.setToken(token, username);
       } else {
-        throw new Error("No token found in login response.");
+        throw { errorPayload: { message: "No token found in response." } };
       }
 
-      // 3. Auto-fetch user data to complete the auth cycle
+      // 6. Auto-fetch profile
       if (this.config.fetchData.enabled && !this.hasUserData()) {
         try {
           await this.fetchUser({ background: false });
@@ -407,18 +424,10 @@ export const useAuthStore = defineStore("auth", {
         }
       }
 
-      // Return a mock payload structure to satisfy SignIn3View's success message
       return { dataPayload: { alertify: { message: "Welcome back!" } } };
 
     } catch (error) {
-      // Format FastAPI's error specifically for your SignIn3View's UI
-      let errorMsg = "Login failed. Please check your credentials.";
-      
-      if (error.response?.data?.detail) {
-        errorMsg = error.response.data.detail;
-      }
-
-      throw { errorPayload: { message: errorMsg } };
+      throw error;
     } finally {
       this.loading = false;
     }
