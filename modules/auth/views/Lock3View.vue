@@ -2,20 +2,36 @@
 import { reactive, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
-
-// Vuelidate, for more info and examples you can check out https://github.com/vuelidate/vuelidate
-import useVuelidate from "@vuelidate/core";
-import { required, minLength } from "@vuelidate/validators";
+import { useAuthStore } from "@/stores/auth";
+import { useAlert } from "@/composables/alerts";
 
 // Main store and Router
 const store = useTemplateStore();
 const router = useRouter();
+const authStore = useAuthStore();
+const { toastError } = useAlert();
+const savedUsername = localStorage.getItem("user.username") || "User";
 
 // Input state variables
 const state = reactive({
   password: null,
 });
+// When they submit the lock screen password
+async function onSubmit() {
+  const result = await v$.value.$validate();
+  if (!result) return;
 
+  try {
+    // Log them back in using the saved username and the password they just typed
+    await authStore.login({
+      username: savedUsername,
+      password: state.password
+    });
+    router.push({ name: "dashboard" });
+  } catch (error) {
+    toastError("Unlock Failed", "Incorrect password.");
+  }
+}
 // Validation rules
 const rules = computed(() => {
   return {

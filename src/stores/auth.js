@@ -368,72 +368,95 @@ export const useAuthStore = defineStore("auth", {
     },
 // login
    // Login method - Raw Axios bypass for OAuth2 Form Data
-   async login(credentials) {
-    this.loading = true;
+async login(credentials) {
+      this.loading = true;
 
-    // 1. We use your custom useApi hook, but we specifically override the 
-    // Content-Type just for this one request to satisfy FastAPI's OAuth2.
-    const { data: responseData, error: apiError, status, request } = useApi(this.config.loginEndpoint, {
-      method: "POST",
-      autoFetch: false,
-      options: {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        }
-      }
-    });
-
-    try {
-      // 2. Format credentials as Form Data (what FastAPI expects)
-      const formData = new URLSearchParams();
-      formData.append("username", credentials.username);
-      formData.append("password", credentials.password);
-
-      // 3. Fire the request!
-      await request(formData);
-
-      // 4. Handle Backend Errors (e.g., 401 Incorrect Password)
-      if (status.value === "error") {
-          let errorMsg = "Login failed. Please check your credentials.";
-          
-          if (apiError.value?.detail) {
-              errorMsg = apiError.value.detail; // Grabs FastAPI's specific error string
+      // 1. We use your custom useApi hook, but we specifically override the 
+      // Content-Type just for this one request to satisfy FastAPI's OAuth2.
+      const { data: responseData, error: apiError, status, request } = useApi(this.config.loginEndpoint, {
+        method: "POST",
+        autoFetch: false,
+        options: {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
           }
-          
-          // Throw it in the format your SignIn3View.vue expects
-          throw { errorPayload: { message: errorMsg } };
-      }
-
-      // 5. Handle Success
-      const payload = responseData.value?.dataPayload || responseData.value || {};
-      const token = payload.access_token;
-
-      if (token) {
-        const username = credentials.username || credentials.email || "User";
-        this.setToken(token, username);
-      } else {
-        throw { errorPayload: { message: "No token found in response." } };
-      }
-
-      // 6. Auto-fetch profile
-      if (this.config.fetchData.enabled && !this.hasUserData()) {
-        try {
-          await this.fetchUser({ background: false });
-        } catch (e) {
-          console.warn("Failed to auto-fetch user profile", e);
         }
+      });
+
+      try {
+        // 2. Format credentials as Form Data (what FastAPI expects)
+        const formData = new URLSearchParams();
+        formData.append("username", credentials.username);
+        formData.append("password", credentials.password);
+
+        // 3. Fire the request!
+        await request(formData);
+
+        // 4. Handle Backend Errors (e.g., 401 Incorrect Password)
+        if (status.value === "error") {
+            let errorMsg = "Login failed. Please check your credentials.";
+            
+            if (apiError.value?.detail) {
+                errorMsg = apiError.value.detail; // Grabs FastAPI's specific error string
+            }
+            
+            // Throw it in the format your SignIn3View.vue expects
+            throw { errorPayload: { message: errorMsg } };
+        }
+
+        // 5. Handle Success
+        const payload = responseData.value?.dataPayload || responseData.value || {};
+        const token = payload.access_token;
+
+        if (token) {
+          const username = credentials.username || credentials.email || "User";
+          this.setToken(token, username);
+        } else {
+          throw { errorPayload: { message: "No token found in response." } };
+        }
+
+        // 6. Auto-fetch profile
+        if (this.config.fetchData.enabled && !this.hasUserData()) {
+          try {
+            await this.fetchUser({ background: false });
+          } catch (e) {
+            console.warn("Failed to auto-fetch user profile", e);
+          }
+        }
+
+        return { dataPayload: { alertify: { message: "Welcome back!" } } };
+
+      } catch (error) {
+        throw error;
+      } finally {
+        this.loading = false;
       }
-
-      return { dataPayload: { alertify: { message: "Welcome back!" } } };
-
-    } catch (error) {
-      throw error;
-    } finally {
-      this.loading = false;
-    }
-  },
+    },
     async logout() {
       await this.logOut({ callApi: true });
     },
+    async register(userData) {
+      this.loading = true;
+      try {
+        const response = await axios.post(
+          import.meta.env.VITE_API_BASE_URL + this.config.registerEndpoint,
+          userData
+        );
+        // Grab the exact success message FastAPI sends, or fallback to a generic one
+        const backendMsg = response.data?.message || response.data?.detail || "Success";
+        return { success: true, message: backendMsg };
+      } catch (error) {
+        // Grab the exact error message FastAPI sends
+        let errorMsg = "Signup failed.";
+        if (error.response?.data?.detail) {
+          errorMsg = Array.isArray(error.response.data.detail) 
+            ? error.response.data.detail[0].msg 
+            : error.response.data.detail;
+        }
+        return { success: false, error: errorMsg };
+      } finally {
+        this.loading = false;
+      }
+    }
   },
 });

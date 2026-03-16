@@ -1,64 +1,59 @@
 <script setup>
-import { reactive, computed } from "vue";
+import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
+import { useAuthStore } from "@/stores/auth";
+import { useAlert } from "@/composables/alerts";
+import { useBackendValidation } from "@/composables/useBackendValidation";
+import axios from "axios";
 
-// Vuelidate, for more info and examples you can check out https://github.com/vuelidate/vuelidate
-import useVuelidate from "@vuelidate/core";
-import { required, minLength, email, sameAs } from "@vuelidate/validators";
-
-// Main store and Router
 const store = useTemplateStore();
 const router = useRouter();
+const authStore = useAuthStore();
+const { toastSuccess } = useAlert();
 
-// Input state variables
+// Pull in our new universal backend error handler!
+const { fieldErrors, clearErrors, handleApiError } = useBackendValidation();
+
+const isLoading = ref(false);
+
 const state = reactive({
-  username: null,
-  email: null,
-  password: null,
-  confirmPassword: null,
-  terms: null,
+  username: "",
+  email: "",
+  password: "",
+  terms: false,
 });
 
-// Validation rules
-const rules = computed(() => {
-  return {
-    username: {
-      required,
-      minLength: minLength(3),
-    },
-    email: {
-      required,
-      email,
-    },
-    password: {
-      required,
-      minLength: minLength(5),
-    },
-    confirmPassword: {
-      required,
-      sameAs: sameAs(state.password),
-    },
-    terms: {
-      sameAs: sameAs(true),
-    },
-  };
-});
-
-// Use vuelidate
-const v$ = useVuelidate(rules, state);
-
-// On form submission
 async function onSubmit() {
-  const result = await v$.value.$validate();
-
-  if (!result) {
-    // notify user form is invalid
+  if (!state.terms) {
+    fieldErrors.value.terms = "You must agree to the service terms!";
     return;
   }
 
-  // Go to dashboard
-  router.push({ name: "dashboard" });
+  isLoading.value = true;
+  clearErrors(); // clear old errors
+
+  try {
+    // Send raw data straight to FastAPI
+    const response = await axios.post(
+      import.meta.env.VITE_API_BASE_URL + authStore.config.registerEndpoint,
+      {
+        username: state.username,
+        email: state.email,
+        password: state.password,
+      }
+    );
+
+    // If FastAPI accepts it, show a success toast and go to login!
+    toastSuccess("Success!", "Your account has been created.");
+    router.push({ name: "auth-signin3" });
+  } catch (error) {
+    // Pass the raw Axios error to our utility.
+    // It will automatically trigger a Toast AND populate fieldErrors.value!
+    handleApiError(error);
+  } finally {
+    isLoading.value = false;
+  }
 }
 </script>
 
@@ -146,40 +141,31 @@ async function onSubmit() {
                     <input
                       type="text"
                       class="form-control form-control-lg form-control-alt py-3"
-                      id="signup-username"
-                      name="signup-username"
                       placeholder="Username"
-                      :class="{
-                        'is-invalid': v$.username.$errors.length,
-                      }"
+                      :class="{ 'is-invalid': fieldErrors.username }"
                       v-model="state.username"
-                      @blur="v$.username.$touch"
                     />
                     <div
-                      v-if="v$.username.$errors.length"
+                      v-if="fieldErrors.username"
                       class="invalid-feedback animated fadeIn"
                     >
-                      Please enter a username
+                      {{ fieldErrors.username }}
                     </div>
                   </div>
+
                   <div class="mb-4">
                     <input
                       type="email"
                       class="form-control form-control-lg form-control-alt py-3"
-                      id="signup-email"
-                      name="signup-email"
                       placeholder="Email"
-                      :class="{
-                        'is-invalid': v$.email.$errors.length,
-                      }"
+                      :class="{ 'is-invalid': fieldErrors.email }"
                       v-model="state.email"
-                      @blur="v$.email.$touch"
                     />
                     <div
-                      v-if="v$.email.$errors.length"
+                      v-if="fieldErrors.email"
                       class="invalid-feedback animated fadeIn"
                     >
-                      Please enter a valid email address
+                      {{ fieldErrors.email }}
                     </div>
                   </div>
                   <div class="mb-4">
@@ -189,76 +175,17 @@ async function onSubmit() {
                       id="signup-password"
                       name="signup-password"
                       placeholder="Password"
-                      :class="{
-                        'is-invalid': v$.password.$errors.length,
-                      }"
+                      :class="{ 'is-invalid': fieldErrors.email }"
                       v-model="state.password"
-                      @blur="v$.password.$touch"
                     />
                     <div
-                      v-if="v$.password.$errors.length"
+                      v-if="fieldErrors.password"
                       class="invalid-feedback animated fadeIn"
                     >
-                      Please provide a password
+                      {{ fieldErrors.password }}
                     </div>
                   </div>
-                  <div class="mb-4">
-                    <input
-                      type="password"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      id="signup-password-confirm"
-                      name="signup-password-confirm"
-                      placeholder="Confirm Password"
-                      :class="{
-                        'is-invalid': v$.confirmPassword.$errors.length,
-                      }"
-                      v-model="state.confirmPassword"
-                      @blur="v$.confirmPassword.$touch"
-                    />
-                    <div
-                      v-if="v$.confirmPassword.$errors.length"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      Please confirm the password
-                    </div>
-                  </div>
-                  <div class="mb-4">
-                    <div
-                      class="d-md-flex align-items-md-center justify-content-md-between"
-                    >
-                      <div class="form-check">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          id="signup-terms"
-                          name="signup-terms"
-                          :class="{
-                            'is-invalid': v$.terms.$errors.length,
-                          }"
-                          v-model="state.terms"
-                          @blur="v$.terms.$touch"
-                        />
-                        <label class="form-check-label" for="signup-terms"
-                          >I agree to Terms &amp; Conditions</label
-                        >
-                        <div
-                          v-if="v$.terms.$errors.length"
-                          class="invalid-feedback animated fadeIn"
-                        >
-                          You must agree to the service terms!
-                        </div>
-                      </div>
-                      <div class="py-2">
-                        <a
-                          class="fs-sm fw-medium"
-                          href="javascript:void(0)"
-                          data-bs-toggle="modal"
-                          data-bs-target="#one-signup-terms"
-                          >View Terms</a
-                        >
-                      </div>
-                    </div>
-                  </div>
+
                   <div class="text-center">
                     <button type="submit" class="btn btn-lg btn-alt-success">
                       <i class="fa fa-fw fa-plus me-1 opacity-50"></i> Sign Up

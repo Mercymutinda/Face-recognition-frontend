@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
+import { useAuthStore } from "@/stores/auth";
 
 // Grab example data
 // import notifications from "@/data/notifications";
@@ -9,7 +10,7 @@ import { useTemplateStore } from "@/stores/template";
 // Main store and Router
 const store = useTemplateStore();
 const router = useRouter();
-
+const authStore = useAuthStore();
 // Reactive variables
 const baseSearchTerm = ref("");
 
@@ -30,7 +31,10 @@ function eventHeaderSearch(event) {
 onMounted(() => {
   document.addEventListener("keydown", eventHeaderSearch);
 });
-
+const onLogout = async () => {
+  await authStore.logout();
+  router.push({ name: "auth-signin3" }); // Adjust name if your route differs
+};
 // Remove keydown event listener
 onUnmounted(() => {
   document.removeEventListener("keydown", eventHeaderSearch);
@@ -160,22 +164,21 @@ onUnmounted(() => {
                     >
                       <span class="fs-sm fw-medium">Lock Account</span>
                     </RouterLink>
-                    <RouterLink
-                      :to="{ name: 'auth-signin3' }"
+                    <a
+                      href="#"
+                      @click.prevent="onLogout"
                       class="dropdown-item d-flex align-items-center justify-content-between"
                     >
                       <span class="fs-sm fw-medium">Log Out</span>
-                    </RouterLink>
+                    </a>
                   </div>
                 </div>
               </div>
               <!-- END User Dropdown -->
 
               <!-- Notifications Dropdown -->
-            
-              <!-- END Notifications Dropdown -->
 
-            
+              <!-- END Notifications Dropdown -->
             </slot>
           </div>
           <!-- END Right Section -->
