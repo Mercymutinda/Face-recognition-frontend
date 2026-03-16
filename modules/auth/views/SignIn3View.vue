@@ -1,38 +1,59 @@
 <script setup>
-import { reactive,ref, computed } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
-import { useAuthStore } from "@/stores/auth";
-import api from "@/utils/api";
+import { useAuthStore } from "@/stores/auth"; // Ensure this is the correct path
+import { useAlert } from "@/composables/alerts";
 
-// Main store and Router
+const { toastSuccess, toastError } = useAlert();
+// Main stores and Router
 const store = useTemplateStore();
 const router = useRouter();
-const auth = useAuthStore();
+const authStore = useAuthStore(); // Changed variable name for clarity
 
+// State variables
 const username = ref("");
 const password = ref("");
 const errors = ref({});
+const isLoading = ref(false); // Must be a ref to use in template
 
 // On form submission
 async function onSubmit() {
-  const result = await v$.value.$validate();
+  errors.value = {}; // Reset errors
+  isLoading.value = true; // Use .value for refs
 
-  if (!result) {
-    // notify user form is invalid
-    return;
+  try {
+    const response = await authStore.login({
+      username: username.value,
+      password: password.value,
+    });
+
+    const successMessage =
+      response?.dataPayload?.alertify?.message || "Welcome back!";
+
+    toastSuccess("Success", successMessage);
+    router.push({ name: "dashboard" });
+  } catch (error) {
+    // Handle useApi error structure (errorPayload directly, not nested in response.data)
+    if (error?.errorPayload?.errors) {
+      errors.value = error.errorPayload.errors;
+    } else {
+      const backendMessage =
+        error?.errorPayload?.message ||
+        error?.message;
+      const fallbackMessage =
+        "Login failed. Please try again.";
+      toastError("Login failed", backendMessage || fallbackMessage);
+    }
+  } finally {
+    isLoading.value = false;
   }
-
-  // Go to dashboard
-  router.push({ name: "dashboard" });
 }
 </script>
 
 <template>
-  <!-- Page Content -->
   <BaseBackground image="/assets/media/photos/photo28@2x.jpg">
     <div class="row g-0 bg-primary-dark-op">
-      <!-- Meta Info Section -->
       <div
         class="hero-static col-lg-4 d-none d-lg-flex flex-column justify-content-center"
       >
@@ -57,28 +78,9 @@ async function onSubmit() {
             <strong>{{ store.app.name + " " + store.app.version }}</strong>
             &copy; {{ store.app.copyright }}
           </p>
-          <ul class="list list-inline mb-0 py-2">
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Legal</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Contact</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Terms</a
-              >
-            </li>
-          </ul>
         </div>
       </div>
-      <!-- END Meta Info Section -->
 
-      <!-- Main Section -->
       <div
         class="hero-static col-lg-8 d-flex flex-column align-items-center bg-body-extra-light"
       >
@@ -92,21 +94,14 @@ async function onSubmit() {
         </div>
         <div class="p-4 w-100 flex-grow-1 d-flex align-items-center">
           <div class="w-100">
-            <!-- Header -->
             <div class="text-center mb-5">
               <p class="mb-3">
                 <i class="fa fa-2x fa-circle-notch text-primary-light"></i>
               </p>
               <h1 class="fw-bold mb-2">Sign In</h1>
-              <p class="fw-medium text-muted">
-                Welcome, please login or
-                <RouterLink :to="{ name: 'auth-signup3' }">sign up</RouterLink>
-                for a new account.
-              </p>
+              <p class="fw-medium text-muted">Please login to your account.</p>
             </div>
-            <!-- END Header -->
 
-            <!-- Sign In Form -->
             <div class="row g-0 justify-content-center">
               <div class="col-sm-8 col-xl-4">
                 <form @submit.prevent="onSubmit">
@@ -114,94 +109,63 @@ async function onSubmit() {
                     <input
                       type="text"
                       class="form-control form-control-lg form-control-alt py-3"
-                      id="login-username"
-                      name="login-username"
                       placeholder="Username"
-                      :class="{
-                        'is-invalid': v$.username.$errors.length,
-                      }"
-                      v-model="state.username"
-                      @blur="v$.username.$touch"
+                      :class="{ 'is-invalid': errors.username }"
+                      v-model="username"
                     />
                     <div
-                      v-if="v$.username.$errors.length"
+                      v-if="errors.username"
                       class="invalid-feedback animated fadeIn"
                     >
-                      Please enter your username
+                      {{ errors.username }}
                     </div>
                   </div>
                   <div class="mb-4">
                     <input
                       type="password"
                       class="form-control form-control-lg form-control-alt py-3"
-                      id="login-password"
-                      name="login-password"
                       placeholder="Password"
-                      :class="{
-                        'is-invalid': v$.password.$errors.length,
-                      }"
-                      v-model="state.password"
-                      @blur="v$.password.$touch"
+                      :class="{ 'is-invalid': errors.password }"
+                      v-model="password"
                     />
                     <div
-                      v-if="v$.password.$errors.length"
+                      v-if="errors.password"
                       class="invalid-feedback animated fadeIn"
                     >
-                      Please enter your password
+                      {{ errors.password }}
                     </div>
                   </div>
                   <div
                     class="d-flex justify-content-between align-items-center mb-4"
                   >
-                    <div>
-                      <RouterLink
-                        :to="{ name: 'auth-reminder3' }"
-                        class="text-muted fs-sm fw-medium d-block d-lg-inline-block mb-1"
-                      >
-                        Forgot Password?
-                      </RouterLink>
-                    </div>
-                    <div>
-                      <button type="submit" class="btn btn-lg btn-alt-primary">
-                        <i class="fa fa-fw fa-sign-in-alt me-1 opacity-50"></i>
-                        Sign In
-                      </button>
-                    </div>
+                    <RouterLink
+                      :to="{ name: 'reminder' }"
+                      class="text-muted fs-sm fw-medium"
+                    >
+                      Forgot Password?
+                    </RouterLink>
+                    <button
+                      type="submit"
+                      class="btn btn-lg btn-alt-primary"
+                      :disabled="isLoading"
+                    >
+                      <i
+                        v-if="isLoading"
+                        class="fa fa-spinner fa-spin me-1"
+                      ></i>
+                      <i
+                        v-else
+                        class="fa fa-fw fa-sign-in-alt me-1 opacity-50"
+                      ></i>
+                      Sign In
+                    </button>
                   </div>
                 </form>
               </div>
             </div>
-            <!-- END Sign In Form -->
           </div>
         </div>
-        <div
-          class="px-4 py-3 w-100 d-lg-none d-flex flex-column flex-sm-row justify-content-between fs-sm text-center text-sm-start"
-        >
-          <p class="fw-medium text-black-50 py-2 mb-0">
-            <strong>{{ store.app.name + " " + store.app.version }}</strong>
-            &copy; {{ store.app.copyright }}
-          </p>
-          <ul class="list list-inline py-2 mb-0">
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Legal</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Contact</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Terms</a
-              >
-            </li>
-          </ul>
-        </div>
       </div>
-      <!-- END Main Section -->
     </div>
   </BaseBackground>
-  <!-- END Page Content -->
 </template>

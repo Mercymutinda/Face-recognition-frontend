@@ -1,5 +1,4 @@
 import { fileURLToPath, URL } from "url";
-
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
@@ -14,13 +13,6 @@ export default defineConfig({
   },
   server: {
     host: true,
-    proxy: {
-      "/v2": {
-        target: process.env.API_BASE_URL || "http://localhost:8000/",
-        changeOrigin: true,
-      },
-    
-      CORS: false
-    }
+    port: 5173
   },
 });
