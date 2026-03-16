@@ -13,5 +13,13 @@ export default defineConfig({
   },
   server: {
     host: true,
+    proxy: {
+      "/v2": {
+        target: process.env.API_BASE_URL || "http://localhost:8000/",
+        changeOrigin: true,
+      },
+    
+      CORS: false
+    }
   },
 });
