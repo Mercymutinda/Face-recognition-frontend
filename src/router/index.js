@@ -18,18 +18,6 @@ const SpecialsInstallation = () =>
   import("@/views/specials/InstallationView.vue");
 const SpecialsComingSoon = () => import("@/views/specials/ComingSoonView.vue");
 
-// Auth
-
-const AuthSignIn3 = () => import("@/views/auth/SignIn3View.vue");
-
-const AuthSignUp3 = () => import("@/views/auth/SignUp3View.vue");
-
-const AuthLock3 = () => import("@/views/auth/Lock3View.vue");
-
-const AuthReminder3 = () => import("@/views/auth/Reminder3View.vue");
-
-const AuthTwoFactor3 = () => import("@/views/auth/TwoFactor3View.vue");
-
 // Errors
 const Error400 = () => import("@/views/errors/400View.vue");
 const Error401 = () => import("@/views/errors/401View.vue");
@@ -40,7 +28,6 @@ const Error503 = () => import("@/views/errors/503View.vue");
 
 // Set all routes
 const routes = [
- 
   {
     path: "/",
     // redirect: "/backend/dashboard",
@@ -56,7 +43,6 @@ const routes = [
     ],
   },
 
-  
   {
     path: "/specials",
     component: LayoutSimple,
@@ -81,43 +67,6 @@ const routes = [
         path: "coming-soon",
         name: "specials-coming-soon",
         component: SpecialsComingSoon,
-      },
-    ],
-  },
-
-  
-  {
-    path: "/auth",
-    component: LayoutSimple,
-    children: [
-      {
-        path: "signin3",
-        name: "auth-signin3",
-        component: AuthSignIn3,
-      },
-
-      {
-        path: "signup3",
-        name: "auth-signup3",
-        component: AuthSignUp3,
-      },
-
-      {
-        path: "lock3",
-        name: "auth-lock3",
-        component: AuthLock3,
-      },
-
-      {
-        path: "reminder3",
-        name: "auth-reminder3",
-        component: AuthReminder3,
-      },
-
-      {
-        path: "two-factor3",
-        name: "auth-two-factor3",
-        component: AuthTwoFactor3,
       },
     ],
   },
