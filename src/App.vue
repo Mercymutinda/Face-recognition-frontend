@@ -8,18 +8,20 @@ const authStore = useAuthStore();
 
 // --- 30 MINUTE IDLE LOCK LOGIC ---
 let idleTimer;
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const IDLE_TIMEOUT_MS = 1 * 60 * 1000; // 30 minutes
+// Inside src/App.vue <script setup>
 
 const resetIdleTimer = () => {
   clearTimeout(idleTimer);
-
+  
   if (authStore.isAuthenticated) {
-    idleTimer = setTimeout(() => {
-      console.log("User inactive for 30 minutes. Locking account.");
-      // Destroy the access token for security
-      authStore.removeToken();
-      // Route to the lock screen (which will use the saved username)
-      router.push({ name: "auth-lock3" });
+    idleTimer = setTimeout(async () => {
+      console.log("User inactive. Triggering API Lock.");
+      
+      // CHANGE THIS: Instead of manually removing the token, 
+      // call the action we built that hits the backend!
+      await authStore.lockAccount(); 
+      
     }, IDLE_TIMEOUT_MS);
   }
 };

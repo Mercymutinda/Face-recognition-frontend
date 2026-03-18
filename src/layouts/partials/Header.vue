@@ -26,7 +26,10 @@ function eventHeaderSearch(event) {
     store.headerSearch({ mode: "off" });
   }
 }
-
+// script setup
+const onLockAccount = async () => {
+  await authStore.lockAccount(); 
+};
 // Attach ESCAPE key event listener
 onMounted(() => {
   document.addEventListener("keydown", eventHeaderSearch);
@@ -158,12 +161,13 @@ onUnmounted(() => {
                   </div>
                   <div role="separator" class="dropdown-divider m-0"></div>
                   <div class="p-2">
-                    <RouterLink
-                      :to="{ name: 'auth-lock3' }"
+                    <a
+                      href="#"
+                      @click.prevent="onLockAccount"
                       class="dropdown-item d-flex align-items-center justify-content-between"
                     >
                       <span class="fs-sm fw-medium">Lock Account</span>
-                    </RouterLink>
+                    </a>
                     <a
                       href="#"
                       @click.prevent="onLogout"

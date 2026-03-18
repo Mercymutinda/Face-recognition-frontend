@@ -34,10 +34,11 @@ export const useAuthStore = defineStore("auth", {
       },
       rolesKey: "permissions",
       loginEndpoint: "/auth/login",
-      registerEndpoint: "/auth/register", // Updated to match your backend reference
+      registerEndpoint: "/auth/signup",
       logoutEndpoint: "/auth/logout",
       userEndpoint: "/users/me",
       refreshEndpoint: "/auth/refresh",
+      lockEndpoint: "/lock_account",
     },
     refreshTimeout: null,
     autoLogoutTimer: null,
@@ -300,7 +301,26 @@ export const useAuthStore = defineStore("auth", {
         router.push(redirect);
       }
     },
-
+    async lockAccount() {
+      // 1. Send request FIRST while we still have the token in memory
+      try {
+        await axios.post(
+          import.meta.env.VITE_API_BASE_URL + "/auth/lock-account", 
+          {}, 
+          { withCredentials: true }
+        );
+      } catch (error) {
+        // If we get a 401, the session is already invalid on the server.
+        // We ignore this and proceed to lock the UI anyway.
+        console.warn("Backend already logged out or unauthorized.");
+      } finally {
+        // 2. Clear local storage ONLY after the request is attempted
+        this.removeToken(); 
+        
+        // 3. Navigate to the lock screen
+        router.push({ name: 'auth-lock3' });
+      }
+    },
     // ------------------------------------------------------
     // UTILITY TIMERS & API CALLS
     // ------------------------------------------------------

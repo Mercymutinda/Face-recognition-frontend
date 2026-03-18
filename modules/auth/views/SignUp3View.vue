@@ -1,25 +1,23 @@
 <script setup>
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { useTemplateStore } from "@/stores/template";
 import { useAuthStore } from "@/stores/auth";
-import { useAlert } from "@/composables/alerts";
 import { useBackendValidation } from "@/composables/useBackendValidation";
-import axios from "axios";
+import { useAlert } from "@/composables/alerts";
 
-const store = useTemplateStore();
 const router = useRouter();
 const authStore = useAuthStore();
 const { toastSuccess } = useAlert();
-
-// Pull in our new universal backend error handler!
 const { fieldErrors, clearErrors, handleApiError } = useBackendValidation();
 
 const isLoading = ref(false);
 
+// 1. ADD THE TWO NEW REQUIRED FIELDS TO STATE
 const state = reactive({
   username: "",
   email: "",
+  registration_number: "",
+  phone_number: "",
   password: "",
   terms: false,
 });
@@ -31,24 +29,25 @@ async function onSubmit() {
   }
 
   isLoading.value = true;
-  clearErrors(); // clear old errors
+  clearErrors();
 
   try {
-    // Send raw data straight to FastAPI
-    const response = await axios.post(
-      import.meta.env.VITE_API_BASE_URL + authStore.config.registerEndpoint,
-      {
-        username: state.username,
-        email: state.email,
-        password: state.password,
-      }
-    );
+    // 2. PASS ALL 5 FIELDS TO THE BACKEND
+    const response = await authStore.register({
+      username: state.username,
+      email: state.email,
+      registration_number: state.registration_number,
+      phone_number: state.phone_number,
+      password: state.password,
+    });
 
-    toastSuccess("Success!", "Your account has been created.");
-    router.push({ name: "auth-signin3" });
+    if (response.success) {
+      toastSuccess("Success!", response.message);
+      router.push({ name: "auth-signin3" });
+    } else {
+      handleApiError({ response: { data: { detail: response.error } } });
+    }
   } catch (error) {
-    // Pass the raw Axios error to our utility.
-    // It will automatically trigger a Toast AND populate fieldErrors.value!
     handleApiError(error);
   } finally {
     isLoading.value = false;
@@ -165,6 +164,37 @@ async function onSubmit() {
                       class="invalid-feedback animated fadeIn"
                     >
                       {{ fieldErrors.email }}
+                    </div>
+                  </div>
+                  <div class="mb-4">
+                    <input
+                      type="text"
+                      class="form-control form-control-lg form-control-alt py-3"
+                      placeholder="Registration Number (e.g., IN14/00000/21)"
+                      :class="{ 'is-invalid': fieldErrors.registration_number }"
+                      v-model="state.registration_number"
+                    />
+                    <div
+                      v-if="fieldErrors.registration_number"
+                      class="invalid-feedback animated fadeIn"
+                    >
+                      {{ fieldErrors.registration_number }}
+                    </div>
+                  </div>
+
+                  <div class="mb-4">
+                    <input
+                      type="text"
+                      class="form-control form-control-lg form-control-alt py-3"
+                      placeholder="Phone Number"
+                      :class="{ 'is-invalid': fieldErrors.phone_number }"
+                      v-model="state.phone_number"
+                    />
+                    <div
+                      v-if="fieldErrors.phone_number"
+                      class="invalid-feedback animated fadeIn"
+                    >
+                      {{ fieldErrors.phone_number }}
                     </div>
                   </div>
                   <div class="mb-4">

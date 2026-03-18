@@ -33,7 +33,7 @@ async function onSubmit() {
     });
 
     if (response.success) {
-      router.push({ name: "backend-dashboard" }); // Make sure this matches your route name!
+      router.push({ name: "dashboard" }); // Make sure this matches your route name!
     }
   } catch (error) {
     // This will pop a red toast and attach any input errors to fieldErrors
