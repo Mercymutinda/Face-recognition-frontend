@@ -38,11 +38,8 @@ async function onSubmit() {
     if (error?.errorPayload?.errors) {
       errors.value = error.errorPayload.errors;
     } else {
-      const backendMessage =
-        error?.errorPayload?.message ||
-        error?.message;
-      const fallbackMessage =
-        "Login failed. Please try again.";
+      const backendMessage = error?.errorPayload?.message || error?.message;
+      const fallbackMessage = "Login failed. Please try again.";
       toastError("Login failed", backendMessage || fallbackMessage);
     }
   } finally {
@@ -138,12 +135,15 @@ async function onSubmit() {
                   <div
                     class="d-flex justify-content-between align-items-center mb-4"
                   >
-                    <RouterLink
-                      :to="{ name: 'reminder' }"
-                      class="text-muted fs-sm fw-medium"
-                    >
-                      Forgot Password?
-                    </RouterLink>
+                    <p class="fs-sm fw-medium text-muted mt-3">
+                      Don't have an account?
+                      <RouterLink
+                        :to="{ name: 'auth-signup3' }"
+                        class="fw-bold text-primary"
+                      >
+                        Sign Up
+                      </RouterLink>
+                    </p>
                     <button
                       type="submit"
                       class="btn btn-lg btn-alt-primary"

@@ -3,7 +3,7 @@ import { encrypt, decrypt, decodeJWT } from "@/helpers/crypto";
 import { useApi } from "@/helpers/useApi";
 import router from "@/router";
 import { useAlert } from "@/composables/alerts";
-import axios from "axios"; 
+import axios from "axios";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -44,7 +44,7 @@ export const useAuthStore = defineStore("auth", {
     autoLogoutTimer: null,
     loading: false,
   }),
-  
+
   getters: {
     isAuthenticated: (state) => state.user.isAuthenticated,
     hasRole: (state) => (roleName) => {
@@ -58,7 +58,7 @@ export const useAuthStore = defineStore("auth", {
 
       // SECURE: Use sessionStorage so it dies when the browser closes
       const encryptedToken = sessionStorage.getItem("user.token");
-      
+
       // UX: Use localStorage for username ONLY so the Lock Screen remembers them tomorrow
       const storedUsername = localStorage.getItem("user.username");
 
@@ -103,7 +103,7 @@ export const useAuthStore = defineStore("auth", {
       // SECURE: sessionStorage
       sessionStorage.setItem("user.token", encryptedToken);
       sessionStorage.setItem("loggedIn", true);
-      
+
       // UX: localStorage for memory
       localStorage.setItem("user.username", username);
 
@@ -120,7 +120,7 @@ export const useAuthStore = defineStore("auth", {
           profile = null,
           username,
         } = userData;
-        
+
         this.user.menus = menus;
         this.user.permissions = permissions;
         this.user.profile = profile;
@@ -129,9 +129,15 @@ export const useAuthStore = defineStore("auth", {
         if (this.config.fetchData.cache) {
           // SECURE: sessionStorage
           sessionStorage.setItem("user.menus", encrypt(JSON.stringify(menus)));
-          sessionStorage.setItem("user.permissions", encrypt(JSON.stringify(permissions)));
+          sessionStorage.setItem(
+            "user.permissions",
+            encrypt(JSON.stringify(permissions))
+          );
           if (profile) {
-            sessionStorage.setItem("user.profile", encrypt(JSON.stringify(profile)));
+            sessionStorage.setItem(
+              "user.profile",
+              encrypt(JSON.stringify(profile))
+            );
           }
         }
       }
@@ -144,13 +150,19 @@ export const useAuthStore = defineStore("auth", {
       const encryptedProfile = sessionStorage.getItem("user.profile");
 
       if (encryptedMenus) {
-        try { this.user.menus = JSON.parse(decrypt(encryptedMenus)); } catch (e) {}
+        try {
+          this.user.menus = JSON.parse(decrypt(encryptedMenus));
+        } catch (e) {}
       }
       if (encryptedPermissions) {
-        try { this.user.permissions = JSON.parse(decrypt(encryptedPermissions)); } catch (e) {}
+        try {
+          this.user.permissions = JSON.parse(decrypt(encryptedPermissions));
+        } catch (e) {}
       }
       if (encryptedProfile) {
-        try { this.user.profile = JSON.parse(decrypt(encryptedProfile)); } catch (e) {}
+        try {
+          this.user.profile = JSON.parse(decrypt(encryptedProfile));
+        } catch (e) {}
       }
     },
 
@@ -187,27 +199,32 @@ export const useAuthStore = defineStore("auth", {
           formData,
           {
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            withCredentials: true // CRITICAL: Accepts the HttpOnly Refresh Cookie
+            withCredentials: true, // CRITICAL: Accepts the HttpOnly Refresh Cookie
           }
         );
 
         // Handle nested data structures depending on backend response wrapper
-        const payload = response.data?.data?.[0] || response.data?.dataPayload?.data?.[0] || response.data;
+        const payload =
+          response.data?.data?.[0] ||
+          response.data?.dataPayload?.data?.[0] ||
+          response.data;
         const token = payload.access_token;
 
         if (token) {
           const username = payload.username || credentials.username || "User";
           this.setToken(token, username);
-          
+
           // Save roles/permissions from login payload if available
           if (payload.role || payload.permissions) {
-              this.setUserData({
-                  permissions: payload.permissions || [payload.role],
-                  username: username
-              });
+            this.setUserData({
+              permissions: payload.permissions || [payload.role],
+              username: username,
+            });
           }
         } else {
-          throw { response: { data: { detail: "No token found in response." } } };
+          throw {
+            response: { data: { detail: "No token found in response." } },
+          };
         }
 
         if (this.config.fetchData.enabled && !this.hasUserData()) {
@@ -215,48 +232,45 @@ export const useAuthStore = defineStore("auth", {
         }
 
         // Let the backend dictate the success message
-        const backendMsg = response.data?.message || response.data?.alertifyPayload?.message || "Welcome back!";
+        const backendMsg =
+          response.data?.message ||
+          response.data?.alertifyPayload?.message ||
+          "Welcome back!";
         return { success: true, message: backendMsg };
-
       } catch (error) {
         let errorMsg = "Login failed. Please check your credentials.";
         if (error.response?.data?.detail) {
           errorMsg = error.response.data.detail;
         } else if (error.response?.data?.errorPayload?.errors) {
-            errorMsg = error.response.data.errorPayload.errors[0];
+          errorMsg = error.response.data.errorPayload.errors[0];
         }
         throw { errorPayload: { message: errorMsg } };
       } finally {
         this.loading = false;
       }
     },
+    // src/stores/auth.js
+
+    // 1. Ensure the endpoint name matches the backend /auth/signup
 
     async register(userData) {
-      this.loading = true;
       try {
         const response = await axios.post(
-          import.meta.env.VITE_API_BASE_URL + this.config.registerEndpoint,
-          userData,
-          { withCredentials: true }
+          import.meta.env.VITE_API_BASE_URL + this.config.registerEndpoint, 
+          {
+            username: userData.username,
+            email: userData.email,
+            registration_number: userData.registration_number,
+            phone_number: userData.phone_number,
+            password: userData.password
+          }
         );
-        
-        const backendMsg = response.data?.message || response.data?.alertifyPayload?.message || "Account created successfully!";
-        return { success: true, message: backendMsg };
+        return { success: true, message: response.data.message };
       } catch (error) {
-        let errorMsg = "Signup failed.";
-        if (error.response?.data?.detail) {
-          errorMsg = Array.isArray(error.response.data.detail) 
-            ? error.response.data.detail[0].msg 
-            : error.response.data.detail;
-        } else if (error.response?.data?.errorPayload?.errors) {
-            errorMsg = error.response.data.errorPayload.errors[0];
-        }
-        return { success: false, error: errorMsg };
-      } finally {
-        this.loading = false;
+        // CRITICAL: Throw the error so the View's catch block handles it
+        throw error; 
       }
     },
-
     async refreshToken() {
       try {
         // Send an empty request. Browser automatically attaches the secure HttpOnly cookie.
@@ -266,7 +280,10 @@ export const useAuthStore = defineStore("auth", {
           { withCredentials: true }
         );
 
-        const payload = response.data?.data?.[0] || response.data?.dataPayload?.data?.[0] || response.data;
+        const payload =
+          response.data?.data?.[0] ||
+          response.data?.dataPayload?.data?.[0] ||
+          response.data;
         return payload.access_token;
       } catch (err) {
         console.error("Refresh failed, forcing logout");
@@ -283,12 +300,15 @@ export const useAuthStore = defineStore("auth", {
         try {
           // Tell backend to destroy the cookie and DB token
           const response = await axios.post(
-              import.meta.env.VITE_API_BASE_URL + this.config.logoutEndpoint,
-              {},
-              { withCredentials: true }
+            import.meta.env.VITE_API_BASE_URL + this.config.logoutEndpoint,
+            {},
+            { withCredentials: true }
           );
-          
-          const successMessage = response.data?.message || response.data?.alertifyPayload?.message || "Logged out successfully.";
+
+          const successMessage =
+            response.data?.message ||
+            response.data?.alertifyPayload?.message ||
+            "Logged out successfully.";
           toastSuccess("Success", successMessage);
         } catch (e) {
           console.error("Logout API failed:", e);
@@ -305,8 +325,8 @@ export const useAuthStore = defineStore("auth", {
       // 1. Send request FIRST while we still have the token in memory
       try {
         await axios.post(
-          import.meta.env.VITE_API_BASE_URL + "/auth/lock-account", 
-          {}, 
+          import.meta.env.VITE_API_BASE_URL + "/auth/lock-account",
+          {},
           { withCredentials: true }
         );
       } catch (error) {
@@ -315,10 +335,10 @@ export const useAuthStore = defineStore("auth", {
         console.warn("Backend already logged out or unauthorized.");
       } finally {
         // 2. Clear local storage ONLY after the request is attempted
-        this.removeToken(); 
-        
+        this.removeToken();
+
         // 3. Navigate to the lock screen
-        router.push({ name: 'auth-lock3' });
+        router.push({ name: "auth-lock3" });
       }
     },
     // ------------------------------------------------------
@@ -332,10 +352,16 @@ export const useAuthStore = defineStore("auth", {
       const decoded = decodeJWT(this.user.token);
       if (!decoded || !decoded.exp) return;
 
-      const remainingTime = (decoded.exp * 1000) - Date.now();
+      const remainingTime = decoded.exp * 1000 - Date.now();
       if (remainingTime <= 0) return;
 
-      const effectiveBuffer = Math.max(5000, Math.min(this.config.refresh.bufferTime, Math.floor(remainingTime * 0.2)));
+      const effectiveBuffer = Math.max(
+        5000,
+        Math.min(
+          this.config.refresh.bufferTime,
+          Math.floor(remainingTime * 0.2)
+        )
+      );
       let refreshTime = remainingTime - effectiveBuffer;
 
       this.refreshTimeout = setTimeout(async () => {
@@ -380,6 +406,6 @@ export const useAuthStore = defineStore("auth", {
           await this.logOut({ callApi: false });
         }
       }
-    }
+    },
   },
 });

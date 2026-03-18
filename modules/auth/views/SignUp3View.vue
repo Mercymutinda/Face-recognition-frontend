@@ -4,9 +4,10 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useBackendValidation } from "@/composables/useBackendValidation";
 import { useAlert } from "@/composables/alerts";
-
+import { useTemplateStore } from "@/stores/template";
 const router = useRouter();
 const authStore = useAuthStore();
+const store = useTemplateStore(); // 2. Initialize it as 'store'
 const { toastSuccess } = useAlert();
 const { fieldErrors, clearErrors, handleApiError } = useBackendValidation();
 
@@ -23,10 +24,6 @@ const state = reactive({
 });
 
 async function onSubmit() {
-  if (!state.terms) {
-    fieldErrors.value.terms = "You must agree to the service terms!";
-    return;
-  }
 
   isLoading.value = true;
   clearErrors();
@@ -204,7 +201,7 @@ async function onSubmit() {
                       id="signup-password"
                       name="signup-password"
                       placeholder="Password"
-                      :class="{ 'is-invalid': fieldErrors.email }"
+                      :class="{ 'is-invalid': fieldErrors.password }"
                       v-model="state.password"
                     />
                     <div
