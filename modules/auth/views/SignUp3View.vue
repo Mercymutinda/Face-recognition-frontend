@@ -44,7 +44,6 @@ async function onSubmit() {
       }
     );
 
-    // If FastAPI accepts it, show a success toast and go to login!
     toastSuccess("Success!", "Your account has been created.");
     router.push({ name: "auth-signin3" });
   } catch (error) {

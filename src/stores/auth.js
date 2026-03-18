@@ -4,6 +4,7 @@ import { useApi } from "@/helpers/useApi";
 import router from "@/router";
 import { useAlert } from "@/composables/alerts";
 import axios from "axios"; 
+
 export const useAuthStore = defineStore("auth", {
   state: () => ({
     user: {
@@ -22,7 +23,7 @@ export const useAuthStore = defineStore("auth", {
         bufferTime: 2 * 60 * 1000,
       },
       fetchData: {
-        enabled: false,
+        enabled: false, // Set to true if you want it to auto-fetch profile on load
         cache: true,
         enabledInBackground: true,
         endpoint: "/users/me",
@@ -33,7 +34,7 @@ export const useAuthStore = defineStore("auth", {
       },
       rolesKey: "permissions",
       loginEndpoint: "/auth/login",
-      registerEndpoint: "/auth/signup",
+      registerEndpoint: "/auth/register", // Updated to match your backend reference
       logoutEndpoint: "/auth/logout",
       userEndpoint: "/users/me",
       refreshEndpoint: "/auth/refresh",
@@ -42,6 +43,7 @@ export const useAuthStore = defineStore("auth", {
     autoLogoutTimer: null,
     loading: false,
   }),
+  
   getters: {
     isAuthenticated: (state) => state.user.isAuthenticated,
     hasRole: (state) => (roleName) => {
@@ -53,7 +55,10 @@ export const useAuthStore = defineStore("auth", {
     initStore(customConfig = {}) {
       this.config = { ...this.config, ...customConfig };
 
-      const encryptedToken = localStorage.getItem("user.token");
+      // SECURE: Use sessionStorage so it dies when the browser closes
+      const encryptedToken = sessionStorage.getItem("user.token");
+      
+      // UX: Use localStorage for username ONLY so the Lock Screen remembers them tomorrow
       const storedUsername = localStorage.getItem("user.username");
 
       if (encryptedToken && storedUsername) {
@@ -94,9 +99,12 @@ export const useAuthStore = defineStore("auth", {
       this.user.username = username;
       this.user.isAuthenticated = true;
 
-      localStorage.setItem("user.token", encryptedToken);
+      // SECURE: sessionStorage
+      sessionStorage.setItem("user.token", encryptedToken);
+      sessionStorage.setItem("loggedIn", true);
+      
+      // UX: localStorage for memory
       localStorage.setItem("user.username", username);
-      localStorage.setItem("loggedIn", true);
 
       if (this.config.refresh.enabled) {
         this.setupTokenRefresh();
@@ -110,139 +118,178 @@ export const useAuthStore = defineStore("auth", {
           permissions = [],
           profile = null,
           username,
-          last_login_at,
-          last_login_ip,
         } = userData;
+        
         this.user.menus = menus;
         this.user.permissions = permissions;
         this.user.profile = profile;
         if (username) this.user.username = username;
 
         if (this.config.fetchData.cache) {
-          const encryptedMenus = encrypt(JSON.stringify(menus));
-          const encryptedPermissions = encrypt(JSON.stringify(permissions));
-          localStorage.setItem("user.menus", encryptedMenus);
-          localStorage.setItem("user.permissions", encryptedPermissions);
+          // SECURE: sessionStorage
+          sessionStorage.setItem("user.menus", encrypt(JSON.stringify(menus)));
+          sessionStorage.setItem("user.permissions", encrypt(JSON.stringify(permissions)));
           if (profile) {
-            localStorage.setItem(
-              "user.profile",
-              encrypt(JSON.stringify(profile))
-            );
+            sessionStorage.setItem("user.profile", encrypt(JSON.stringify(profile)));
           }
         }
-      } else {
-        console.warn("User data is missing or invalid.");
       }
     },
 
     loadCachedUserData() {
-      const encryptedMenus = localStorage.getItem("user.menus");
-      const encryptedPermissions = localStorage.getItem("user.permissions");
-      const encryptedProfile = localStorage.getItem("user.profile");
+      // SECURE: sessionStorage
+      const encryptedMenus = sessionStorage.getItem("user.menus");
+      const encryptedPermissions = sessionStorage.getItem("user.permissions");
+      const encryptedProfile = sessionStorage.getItem("user.profile");
 
       if (encryptedMenus) {
-        try {
-          this.user.menus = JSON.parse(decrypt(encryptedMenus));
-        } catch (error) {
-          console.error("Failed to decrypt menus:", error);
-        }
+        try { this.user.menus = JSON.parse(decrypt(encryptedMenus)); } catch (e) {}
       }
-
       if (encryptedPermissions) {
-        try {
-          this.user.permissions = JSON.parse(decrypt(encryptedPermissions));
-        } catch (error) {
-          console.error("Failed to decrypt permissions:", error);
-        }
+        try { this.user.permissions = JSON.parse(decrypt(encryptedPermissions)); } catch (e) {}
       }
-
       if (encryptedProfile) {
-        try {
-          this.user.profile = JSON.parse(decrypt(encryptedProfile));
-        } catch (error) {
-          console.error("Failed to decrypt profile:", error);
-        }
-      }
-    },
-
-    getMenus() {
-      const encryptedMenus = localStorage.getItem("user.menus");
-      if (!encryptedMenus) return {};
-
-      try {
-        return JSON.parse(decrypt(encryptedMenus));
-      } catch (error) {
-        console.error("Failed to decrypt menus:", error);
-        return {};
-      }
-    },
-
-    getPermissions() {
-      const encryptedPermissions = localStorage.getItem("user.permissions");
-      if (!encryptedPermissions) return [];
-
-      try {
-        return JSON.parse(decrypt(encryptedPermissions));
-      } catch (error) {
-        console.error("Failed to decrypt permissions:", error);
-        return [];
+        try { this.user.profile = JSON.parse(decrypt(encryptedProfile)); } catch (e) {}
       }
     },
 
     removeToken() {
       this.user.token = null;
-      this.user.username = null;
       this.user.isAuthenticated = false;
       this.user.menus = {};
       this.user.permissions = [];
+      // Notice we DO NOT clear user.username so the Lock Screen can use it!
 
-      localStorage.removeItem("user.token");
-      localStorage.removeItem("user.username");
-      localStorage.removeItem("loggedIn");
-      localStorage.removeItem("user.menus");
-      localStorage.removeItem("user.permissions");
+      sessionStorage.removeItem("user.token");
+      sessionStorage.removeItem("loggedIn");
+      sessionStorage.removeItem("user.menus");
+      sessionStorage.removeItem("user.permissions");
+      sessionStorage.removeItem("user.profile");
 
       if (this.refreshTimeout) clearTimeout(this.refreshTimeout);
       if (this.autoLogoutTimer) clearInterval(this.autoLogoutTimer);
     },
 
-    setIp(ipAddr) {
-      this.user.ipAddr = ipAddr;
-      sessionStorage.setItem("ipA", ipAddr);
+    // ------------------------------------------------------
+    // CORE AUTH ROUTES (Raw Axios to manage Cookies directly)
+    // ------------------------------------------------------
+
+    async login(credentials) {
+      this.loading = true;
+      try {
+        const formData = new URLSearchParams();
+        formData.append("username", credentials.username);
+        formData.append("password", credentials.password);
+
+        const response = await axios.post(
+          import.meta.env.VITE_API_BASE_URL + this.config.loginEndpoint,
+          formData,
+          {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            withCredentials: true // CRITICAL: Accepts the HttpOnly Refresh Cookie
+          }
+        );
+
+        // Handle nested data structures depending on backend response wrapper
+        const payload = response.data?.data?.[0] || response.data?.dataPayload?.data?.[0] || response.data;
+        const token = payload.access_token;
+
+        if (token) {
+          const username = payload.username || credentials.username || "User";
+          this.setToken(token, username);
+          
+          // Save roles/permissions from login payload if available
+          if (payload.role || payload.permissions) {
+              this.setUserData({
+                  permissions: payload.permissions || [payload.role],
+                  username: username
+              });
+          }
+        } else {
+          throw { response: { data: { detail: "No token found in response." } } };
+        }
+
+        if (this.config.fetchData.enabled && !this.hasUserData()) {
+          this.fetchUser({ background: true });
+        }
+
+        // Let the backend dictate the success message
+        const backendMsg = response.data?.message || response.data?.alertifyPayload?.message || "Welcome back!";
+        return { success: true, message: backendMsg };
+
+      } catch (error) {
+        let errorMsg = "Login failed. Please check your credentials.";
+        if (error.response?.data?.detail) {
+          errorMsg = error.response.data.detail;
+        } else if (error.response?.data?.errorPayload?.errors) {
+            errorMsg = error.response.data.errorPayload.errors[0];
+        }
+        throw { errorPayload: { message: errorMsg } };
+      } finally {
+        this.loading = false;
+      }
     },
 
-    logOutRequest() {
-      this.removeToken();
-      localStorage.removeItem("user.menus");
-      localStorage.removeItem("user.permissions");
+    async register(userData) {
+      this.loading = true;
+      try {
+        const response = await axios.post(
+          import.meta.env.VITE_API_BASE_URL + this.config.registerEndpoint,
+          userData,
+          { withCredentials: true }
+        );
+        
+        const backendMsg = response.data?.message || response.data?.alertifyPayload?.message || "Account created successfully!";
+        return { success: true, message: backendMsg };
+      } catch (error) {
+        let errorMsg = "Signup failed.";
+        if (error.response?.data?.detail) {
+          errorMsg = Array.isArray(error.response.data.detail) 
+            ? error.response.data.detail[0].msg 
+            : error.response.data.detail;
+        } else if (error.response?.data?.errorPayload?.errors) {
+            errorMsg = error.response.data.errorPayload.errors[0];
+        }
+        return { success: false, error: errorMsg };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async refreshToken() {
+      try {
+        // Send an empty request. Browser automatically attaches the secure HttpOnly cookie.
+        const response = await axios.post(
+          import.meta.env.VITE_API_BASE_URL + this.config.refreshEndpoint,
+          {},
+          { withCredentials: true }
+        );
+
+        const payload = response.data?.data?.[0] || response.data?.dataPayload?.data?.[0] || response.data;
+        return payload.access_token;
+      } catch (err) {
+        console.error("Refresh failed, forcing logout");
+        this.removeToken();
+        throw err;
+      }
     },
 
     async logOut(options = {}) {
-      const { redirect = { name: "/auth/login" }, callApi = true } = options;
+      const { redirect = { name: "auth-signin3" }, callApi = true } = options;
       const { toastSuccess, toastError } = useAlert();
 
       if (callApi) {
-        const { request } = useApi("/auth/logout", {
-          method: "POST",
-          autoFetch: false,
-        });
-
         try {
-          const response = await request({ device: "web" });
-          const successMessage =
-            response?.dataPayload?.alertify?.message ||
-            response?.alertifyPayload?.message ||
-            response?.message ||
-            "Logged out successfully.";
+          // Tell backend to destroy the cookie and DB token
+          const response = await axios.post(
+              import.meta.env.VITE_API_BASE_URL + this.config.logoutEndpoint,
+              {},
+              { withCredentials: true }
+          );
+          
+          const successMessage = response.data?.message || response.data?.alertifyPayload?.message || "Logged out successfully.";
           toastSuccess("Success", successMessage);
-          console.log("Logout API call successful");
         } catch (e) {
-          const errorMessage =
-            e?.errorPayload?.message ||
-            e?.alertifyPayload?.message ||
-            e?.message ||
-            "Logout failed.";
-          toastError("Logout failed", errorMessage);
           console.error("Logout API failed:", e);
         }
       }
@@ -254,70 +301,33 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
+    // ------------------------------------------------------
+    // UTILITY TIMERS & API CALLS
+    // ------------------------------------------------------
+
     setupTokenRefresh() {
       if (this.refreshTimeout) clearTimeout(this.refreshTimeout);
-
       if (!this.user.token) return;
 
       const decoded = decodeJWT(this.user.token);
       if (!decoded || !decoded.exp) return;
 
-      const expiryTime = decoded.exp * 1000;
-      const remainingTime = expiryTime - Date.now();
+      const remainingTime = (decoded.exp * 1000) - Date.now();
       if (remainingTime <= 0) return;
 
-      const configuredBuffer = this.config.refresh.bufferTime;
-      const minimumBuffer = 5000;
-      const dynamicBuffer = Math.floor(remainingTime * 0.2);
-      const effectiveBuffer = Math.max(
-        minimumBuffer,
-        Math.min(configuredBuffer, dynamicBuffer)
-      );
-
+      const effectiveBuffer = Math.max(5000, Math.min(this.config.refresh.bufferTime, Math.floor(remainingTime * 0.2)));
       let refreshTime = remainingTime - effectiveBuffer;
-
-      if (refreshTime < 1000) {
-        refreshTime = Math.max(1000, Math.floor(remainingTime * 0.7));
-      }
 
       this.refreshTimeout = setTimeout(async () => {
         try {
           const newToken = await this.refreshToken();
           if (newToken) {
             this.setToken(newToken, this.user.username);
-            if (this.config.refresh.enabledInBackground) {
-              console.log("Token refreshed in background");
-            }
           }
         } catch (e) {
-          console.error("Token refresh failed:", e);
-          if (this.config.autoLogout.enabled) {
-            await this.logOut();
-          }
+          if (this.config.autoLogout.enabled) await this.logOut();
         }
       }, refreshTime);
-    },
-
-    async refreshToken() {
-      const { data: responseData, request } = useApi(
-        this.config.refreshEndpoint,
-        {
-          method: "POST",
-          autoFetch: false,
-        }
-      );
-
-      try {
-        await request();
-        return (
-          responseData.value?.dataPayload?.data?.access_token ||
-          responseData.value?.dataPayload?.token ||
-          responseData.value?.token ||
-          responseData.value?.access_token
-        );
-      } catch (err) {
-        throw err;
-      }
     },
 
     setupAutoLogout() {
@@ -325,20 +335,16 @@ export const useAuthStore = defineStore("auth", {
 
       this.autoLogoutTimer = setInterval(() => {
         if (!this.user.token) return;
-
         const decoded = decodeJWT(this.user.token);
-        if (!decoded || !decoded.exp) return;
-
-        if (Date.now() >= decoded.exp * 1000) {
-          this.logOutRequest();
-          console.log("Auto-logout due to token expiry");
+        if (decoded && Date.now() >= decoded.exp * 1000) {
+          this.removeToken();
+          router.push({ name: "auth-signin3" });
         }
       }, this.config.autoLogout.checkInterval);
     },
 
     async fetchUser(options = {}) {
       const { background = false, force = false } = options;
-
       if (!force && this.hasUserData()) return;
 
       const { data: responseData, request } = useApi(this.config.userEndpoint, {
@@ -349,113 +355,10 @@ export const useAuthStore = defineStore("auth", {
       try {
         await request();
         this.setUserData(responseData.value?.dataPayload || responseData.value);
-        if (background) {
-          console.log("User data fetched in background");
-        }
       } catch (e) {
-        console.error("Failed to fetch user data:", e);
         if (this.config.autoLogout.enabled) {
-          await this.logOutRequest();
+          await this.logOut({ callApi: false });
         }
-      }
-    },
-
-    hasUserData() {
-      return (
-        Object.keys(this.user?.menus ?? {}).length > 0 ||
-        (this.user?.permissions?.length ?? 0) > 0
-      );
-    },
-// login
-   // Login method - Raw Axios bypass for OAuth2 Form Data
-async login(credentials) {
-      this.loading = true;
-
-      // 1. We use your custom useApi hook, but we specifically override the 
-      // Content-Type just for this one request to satisfy FastAPI's OAuth2.
-      const { data: responseData, error: apiError, status, request } = useApi(this.config.loginEndpoint, {
-        method: "POST",
-        autoFetch: false,
-        options: {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          }
-        }
-      });
-
-      try {
-        // 2. Format credentials as Form Data (what FastAPI expects)
-        const formData = new URLSearchParams();
-        formData.append("username", credentials.username);
-        formData.append("password", credentials.password);
-
-        // 3. Fire the request!
-        await request(formData);
-
-        // 4. Handle Backend Errors (e.g., 401 Incorrect Password)
-        if (status.value === "error") {
-            let errorMsg = "Login failed. Please check your credentials.";
-            
-            if (apiError.value?.detail) {
-                errorMsg = apiError.value.detail; // Grabs FastAPI's specific error string
-            }
-            
-            // Throw it in the format your SignIn3View.vue expects
-            throw { errorPayload: { message: errorMsg } };
-        }
-
-        // 5. Handle Success
-        const payload = responseData.value?.dataPayload || responseData.value || {};
-        const token = payload.access_token;
-
-        if (token) {
-          const username = credentials.username || credentials.email || "User";
-          this.setToken(token, username);
-        } else {
-          throw { errorPayload: { message: "No token found in response." } };
-        }
-
-        // 6. Auto-fetch profile
-        if (this.config.fetchData.enabled && !this.hasUserData()) {
-          try {
-            await this.fetchUser({ background: false });
-          } catch (e) {
-            console.warn("Failed to auto-fetch user profile", e);
-          }
-        }
-
-        return { dataPayload: { alertify: { message: "Welcome back!" } } };
-
-      } catch (error) {
-        throw error;
-      } finally {
-        this.loading = false;
-      }
-    },
-    async logout() {
-      await this.logOut({ callApi: true });
-    },
-    async register(userData) {
-      this.loading = true;
-      try {
-        const response = await axios.post(
-          import.meta.env.VITE_API_BASE_URL + this.config.registerEndpoint,
-          userData
-        );
-        // Grab the exact success message FastAPI sends, or fallback to a generic one
-        const backendMsg = response.data?.message || response.data?.detail || "Success";
-        return { success: true, message: backendMsg };
-      } catch (error) {
-        // Grab the exact error message FastAPI sends
-        let errorMsg = "Signup failed.";
-        if (error.response?.data?.detail) {
-          errorMsg = Array.isArray(error.response.data.detail) 
-            ? error.response.data.detail[0].msg 
-            : error.response.data.detail;
-        }
-        return { success: false, error: errorMsg };
-      } finally {
-        this.loading = false;
       }
     }
   },

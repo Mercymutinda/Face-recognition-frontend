@@ -32,7 +32,7 @@ onMounted(() => {
   document.addEventListener("keydown", eventHeaderSearch);
 });
 const onLogout = async () => {
-  await authStore.logout();
+  await authStore.logOut();
   router.push({ name: "auth-signin3" }); // Adjust name if your route differs
 };
 // Remove keydown event listener
