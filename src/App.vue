@@ -8,7 +8,7 @@ const authStore = useAuthStore();
 
 // --- 30 MINUTE IDLE LOCK LOGIC ---
 let idleTimer;
-const IDLE_TIMEOUT_MS = 1 * 60 * 1000; // 30 minutes
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 // Inside src/App.vue <script setup>
 
 const resetIdleTimer = () => {

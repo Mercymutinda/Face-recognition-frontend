@@ -1,7 +1,7 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { useTemplateStore } from "@/stores/template";
-
+import { useAuthStore } from "@/stores/auth";
 import BaseNavigation from "@/components/BaseNavigation.vue";
 
 // SimpleBar, for more info and examples you can check out https://github.com/Grsmto/simplebar/tree/master/packages/simplebar-vue
@@ -9,9 +9,12 @@ import SimpleBar from "simplebar";
 
 // Grab menu navigation arrays
 import menu from "@/data/menu";
-
-const navigation = menu.main;
-
+const authStore = useAuthStore();
+const navigation = computed(() => {
+  if (authStore.hasRole('ADMIN')) return menu.admin;
+  if (authStore.hasRole('LECTURER')) return menu.lecturer;
+  return menu.student;
+});
 // Component properties
 defineProps({
   withMiniNav: {
