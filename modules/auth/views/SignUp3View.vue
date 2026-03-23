@@ -1,353 +1,152 @@
 <script setup>
-import { reactive, ref } from "vue";
+import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useBackendValidation } from "@/composables/useBackendValidation";
-import { useAlert } from "@/composables/alerts";
-import { useTemplateStore } from "@/stores/template";
-const router = useRouter();
+
+const router    = useRouter();
 const authStore = useAuthStore();
-const store = useTemplateStore(); // 2. Initialize it as 'store'
-const { toastSuccess } = useAlert();
-const { fieldErrors, clearErrors, handleApiError } = useBackendValidation();
 
-const isLoading = ref(false);
-
-// 1. ADD THE TWO NEW REQUIRED FIELDS TO STATE
-const state = reactive({
-  username: "",
-  email: "",
-  registration_number: "",
-  phone_number: "",
-  password: "",
-  terms: false,
+const form = reactive({
+  username: "", email: "", registration_number: "",
+  phone_number: "", password: "", confirmPassword: "",
+  full_name: "", program: "BSCS", year_of_study: 1,
 });
+const error   = ref("");
+const success = ref("");
+const loading = ref(false);
 
 async function onSubmit() {
-
-  isLoading.value = true;
-  clearErrors();
-
-  try {
-    // 2. PASS ALL 5 FIELDS TO THE BACKEND
-    const response = await authStore.register({
-      username: state.username,
-      email: state.email,
-      registration_number: state.registration_number,
-      phone_number: state.phone_number,
-      password: state.password,
-    });
-
-    if (response.success) {
-      toastSuccess("Success!", response.message);
-      router.push({ name: "auth-signin3" });
-    } else {
-      handleApiError({ response: { data: { detail: response.error } } });
-    }
-  } catch (error) {
-    handleApiError(error);
-  } finally {
-    isLoading.value = false;
+  if (form.password !== form.confirmPassword) {
+    error.value = "Passwords do not match."; return;
+  }
+  error.value = ""; loading.value = true;
+  const { confirmPassword, ...payload } = form;
+  const ok = await authStore.signup(payload);
+  loading.value = false;
+  if (ok) {
+    success.value = "Account created! Redirecting to login…";
+    setTimeout(() => router.push({ name: "auth-signin3" }), 2000);
+  } else {
+    error.value = authStore.error || "Registration failed.";
   }
 }
 </script>
 
 <template>
-  <!-- Page Content -->
-  <div class="bg-primary-dark">
-    <div class="row g-0 bg-primary-dark-op">
-      <!-- Meta Info Section -->
-      <div
-        class="hero-static col-lg-4 d-none d-lg-flex flex-column justify-content-center"
-      >
-        <div class="p-4 p-xl-5 flex-grow-1 d-flex align-items-center">
-          <div class="w-100">
-            <RouterLink
-              :to="{ name: 'dashboard' }"
-              class="link-fx fw-semibold fs-2 text-white"
-            >
-              One<span class="fw-normal">UI</span>
+  <div class="academi-auth-bg">
+    <div class="row g-0" style="min-height:100vh;">
+      <!-- Left panel -->
+      <div class="d-none d-lg-flex col-lg-4 flex-column justify-content-center"
+        style="background:linear-gradient(180deg,rgba(51,27,17,0.98) 0%,rgba(45,62,22,0.98) 100%);
+               border-right:1px solid rgba(245,237,224,0.1);padding:40px;">
+        <div class="d-flex align-items-center gap-3 mb-5">
+          <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#E65F0E,#c44a00);
+                      display:flex;align-items:center;justify-content:center;font-size:20px;">🔍</div>
+          <div style="font-family:'Playfair Display',serif;font-size:21px;font-weight:700;color:#f5ede0;">
+            Academi<span style="color:#E65F0E;">Scan</span>
+          </div>
+        </div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:24px;color:#f5ede0;margin-bottom:12px;">
+          Student Registration
+        </h2>
+        <p style="color:#b89a7a;font-size:13px;line-height:1.7;">
+          Create your academic account to access timetables,
+          attendance records and exam authentication.
+        </p>
+        <div style="margin-top:30px;border-top:1px solid rgba(245,237,224,0.1);padding-top:20px;">
+          <p style="color:#7a5c42;font-size:12px;">
+            Already have an account?
+            <RouterLink :to="{ name: 'auth-signin3' }" style="color:#E65F0E;font-weight:600;">
+              Sign In →
             </RouterLink>
-            <p class="text-white-75 me-xl-8 mt-2">
-              Creating a new account is completely free. Get started with 5
-              projects to manage and feel free to upgrade as your business grow.
-            </p>
-          </div>
-        </div>
-        <div
-          class="p-4 p-xl-5 d-xl-flex justify-content-between align-items-center fs-sm"
-        >
-          <p class="fw-medium text-white-50 mb-0">
-            <strong>{{ store.app.name + " " + store.app.version }}</strong>
-            &copy; {{ store.app.copyright }}
           </p>
-          <ul class="list list-inline mb-0 py-2">
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Legal</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Contact</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-white-75 fw-medium" href="javascript:void(0)"
-                >Terms</a
-              >
-            </li>
-          </ul>
         </div>
       </div>
-      <!-- END Meta Info Section -->
 
-      <!-- Main Section -->
-      <div
-        class="hero-static col-lg-8 d-flex flex-column align-items-center bg-body-extra-light"
-      >
-        <div class="p-3 w-100 d-lg-none text-center">
-          <RouterLink
-            :to="{ name: 'dashboard' }"
-            class="link-fx fw-semibold fs-3 text-dark"
-          >
-            One<span class="fw-normal">UI</span>
-          </RouterLink>
-        </div>
-        <div class="p-4 w-100 flex-grow-1 d-flex align-items-center">
-          <div class="w-100">
-            <!-- Header -->
-            <div class="text-center mb-5">
-              <p class="mb-3">
-                <i class="fa fa-2x fa-circle-notch text-primary-light"></i>
-              </p>
-              <h1 class="fw-bold mb-2">Create Account</h1>
-              <p class="fw-medium text-muted">
-                Get your access today in one easy step
-              </p>
-            </div>
-            <!-- END Header -->
+      <!-- Right panel: form -->
+      <div class="col-lg-8 d-flex align-items-center justify-content-center"
+        style="background:rgba(51,27,17,0.5);backdrop-filter:blur(10px);padding:40px 20px;">
+        <div style="width:100%;max-width:560px;">
+          <h1 style="font-family:'Playfair Display',serif;font-size:24px;font-weight:800;color:#f5ede0;margin-bottom:22px;">
+            Create Account
+          </h1>
 
-            <!-- Sign Up Form -->
-            <div class="row g-0 justify-content-center">
-              <div class="col-sm-8 col-xl-4">
-                <form @submit.prevent="onSubmit">
-                  <div class="mb-4">
-                    <input
-                      type="text"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      placeholder="Username"
-                      :class="{ 'is-invalid': fieldErrors.username }"
-                      v-model="state.username"
-                    />
-                    <div
-                      v-if="fieldErrors.username"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      {{ fieldErrors.username }}
-                    </div>
-                  </div>
+          <div v-if="error"   class="alert alert-danger  py-2 mb-3" style="font-size:13px;">{{ error }}</div>
+          <div v-if="success" class="alert alert-success py-2 mb-3" style="font-size:13px;">{{ success }}</div>
 
-                  <div class="mb-4">
-                    <input
-                      type="email"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      placeholder="Email"
-                      :class="{ 'is-invalid': fieldErrors.email }"
-                      v-model="state.email"
-                    />
-                    <div
-                      v-if="fieldErrors.email"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      {{ fieldErrors.email }}
-                    </div>
-                  </div>
-                  <div class="mb-4">
-                    <input
-                      type="text"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      placeholder="Registration Number (e.g., IN14/00000/21)"
-                      :class="{ 'is-invalid': fieldErrors.registration_number }"
-                      v-model="state.registration_number"
-                    />
-                    <div
-                      v-if="fieldErrors.registration_number"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      {{ fieldErrors.registration_number }}
-                    </div>
-                  </div>
-
-                  <div class="mb-4">
-                    <input
-                      type="text"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      placeholder="Phone Number"
-                      :class="{ 'is-invalid': fieldErrors.phone_number }"
-                      v-model="state.phone_number"
-                    />
-                    <div
-                      v-if="fieldErrors.phone_number"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      {{ fieldErrors.phone_number }}
-                    </div>
-                  </div>
-                  <div class="mb-4">
-                    <input
-                      type="password"
-                      class="form-control form-control-lg form-control-alt py-3"
-                      id="signup-password"
-                      name="signup-password"
-                      placeholder="Password"
-                      :class="{ 'is-invalid': fieldErrors.password }"
-                      v-model="state.password"
-                    />
-                    <div
-                      v-if="fieldErrors.password"
-                      class="invalid-feedback animated fadeIn"
-                    >
-                      {{ fieldErrors.password }}
-                    </div>
-                  </div>
-
-                  <div class="text-center">
-                    <button type="submit" class="btn btn-lg btn-alt-success">
-                      <i class="fa fa-fw fa-plus me-1 opacity-50"></i> Sign Up
-                    </button>
-                  </div>
-                </form>
+          <form @submit.prevent="onSubmit">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="academi-label">FULL NAME</label>
+                <input v-model="form.full_name" type="text" class="academi-input" placeholder="Mercy Mbeke Mutinda"/>
+              </div>
+              <div class="col-md-6">
+                <label class="academi-label">USERNAME</label>
+                <input v-model="form.username" type="text" class="academi-input" placeholder="mercy_mutinda" required/>
+              </div>
+              <div class="col-md-6">
+                <label class="academi-label">REGISTRATION NUMBER</label>
+                <input v-model="form.registration_number" type="text" class="academi-input"
+                  placeholder="BSCS/183J/2022" required/>
+              </div>
+              <div class="col-md-6">
+                <label class="academi-label">PHONE NUMBER</label>
+                <input v-model="form.phone_number" type="tel" class="academi-input"
+                  placeholder="+254712345678" required/>
+              </div>
+              <div class="col-md-8">
+                <label class="academi-label">EMAIL ADDRESS</label>
+                <input v-model="form.email" type="email" class="academi-input"
+                  placeholder="student@tum.ac.ke" required/>
+              </div>
+              <div class="col-md-4">
+                <label class="academi-label">PROGRAM</label>
+                <select v-model="form.program" class="academi-input">
+                  <option>BSCS</option><option>BBIT</option><option>BIT</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="academi-label">YEAR OF STUDY</label>
+                <select v-model="form.year_of_study" class="academi-input">
+                  <option :value="1">Year 1</option><option :value="2">Year 2</option>
+                  <option :value="3">Year 3</option><option :value="4">Year 4</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="academi-label">PASSWORD</label>
+                <input v-model="form.password" type="password" class="academi-input"
+                  placeholder="Min. 8 chars" required/>
+              </div>
+              <div class="col-md-4">
+                <label class="academi-label">CONFIRM PASSWORD</label>
+                <input v-model="form.confirmPassword" type="password" class="academi-input"
+                  placeholder="Repeat password" required/>
               </div>
             </div>
-            <!-- END Sign Up Form -->
-          </div>
-        </div>
-        <div
-          class="px-4 py-3 w-100 d-lg-none d-flex flex-column flex-sm-row justify-content-between fs-sm text-center text-sm-start"
-        >
-          <p class="fw-medium text-black-50 py-2 mb-0">
-            <strong>{{ store.app.name + " " + store.app.version }}</strong>
-            &copy; {{ store.app.copyright }}
-          </p>
-          <ul class="list list-inline py-2 mb-0">
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Legal</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Contact</a
-              >
-            </li>
-            <li class="list-inline-item">
-              <a class="text-muted fw-medium" href="javascript:void(0)"
-                >Terms</a
-              >
-            </li>
-          </ul>
-        </div>
-      </div>
-      <!-- END Main Section -->
-    </div>
 
-    <!-- Terms Modal -->
-    <div
-      class="modal fade"
-      id="one-signup-terms"
-      tabindex="-1"
-      role="dialog"
-      aria-labelledby="one-signup-terms"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-lg modal-dialog-popout" role="document">
-        <div class="modal-content">
-          <BaseBlock title="Terms &amp; Conditions" transparent class="mb-0">
-            <template #options>
-              <button
-                type="button"
-                class="btn-block-option"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              >
-                <i class="fa fa-fw fa-times"></i>
+            <div class="d-flex justify-content-between align-items-center mt-4">
+              <RouterLink :to="{ name: 'auth-signin3' }"
+                style="font-size:12.5px;color:#b89a7a;">← Back to Sign In</RouterLink>
+              <button type="submit" class="academi-btn-orange" :disabled="loading">
+                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+                Create Account →
               </button>
-            </template>
-
-            <template #content>
-              <div class="block-content">
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-                <p>
-                  Dolor posuere proin blandit accumsan senectus netus nullam
-                  curae, ornare laoreet adipiscing luctus mauris adipiscing
-                  pretium eget fermentum, tristique lobortis est ut metus
-                  lobortis tortor tincidunt himenaeos habitant quis dictumst
-                  proin odio sagittis purus mi, nec taciti vestibulum quis in
-                  sit varius lorem sit metus mi.
-                </p>
-              </div>
-              <div class="block-content block-content-full text-end bg-body">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-alt-secondary me-1"
-                  data-bs-dismiss="modal"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-primary"
-                  data-bs-dismiss="modal"
-                >
-                  I Agree
-                </button>
-              </div>
-            </template>
-          </BaseBlock>
+            </div>
+          </form>
         </div>
       </div>
     </div>
-    <!-- END Terms Modal -->
   </div>
-  <!-- END Page Content -->
 </template>
+
+<style scoped>
+.academi-auth-bg { min-height:100vh; background:#331B11; }
+.academi-label   { display:block;font-size:11px;font-weight:600;color:#b89a7a;letter-spacing:.1em;font-family:'DM Mono',monospace;margin-bottom:5px; }
+.academi-input   { width:100%;background:rgba(245,237,224,.06);border:1px solid rgba(245,237,224,.12);border-radius:9px;padding:10px 13px;color:#f0e6d3;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .15s; }
+.academi-input:focus { border-color:rgba(230,95,14,.5); }
+.academi-input::placeholder { color:#7a5c42; }
+select.academi-input option { background:#331B11; }
+.academi-btn-orange { background:linear-gradient(135deg,#E65F0E,#c44a00);border:none;color:#fff;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 18px rgba(230,95,14,.3);transition:all .15s; }
+.academi-btn-orange:hover { transform:translateY(-1px);box-shadow:0 6px 24px rgba(230,95,14,.45); }
+.academi-btn-orange:disabled { opacity:.7;transform:none; }
+</style>

@@ -1,135 +1,237 @@
+// src/router/index.js
+// Route guards use authStore.userCan() — backend decides access.
+
 import { createRouter, createWebHashHistory } from "vue-router";
 import NProgress from "nprogress/nprogress.js";
-import { useAuthStore } from "@/stores/auth";
 
-// Main layout variations
+// Layouts
 import LayoutSimple from "@/layouts/variations/Simple.vue";
 import LayoutBackend from "@/layouts/variations/Backend.vue";
 
-// Backend: Dashboard
-const BackendDashboard = () => import("@/views/backend/DashboardView.vue");
+// Auth views
+const SignIn3View = () => import("~/auth/views/SignIn3View.vue");
+const SignUp3View = () => import("~/auth/views/SignUp3View.vue");
+const Lock3View = () => import("~/auth/views/Lock3View.vue");
+const Reminder3View = () => import("~/auth/views/Reminder3View.vue");
 
-// Specials
-const SpecialsMaintenance = () => import("@/views/specials/MaintenanceView.vue");
-const SpecialsStatus = () => import("@/views/specials/StatusView.vue");
-const SpecialsInstallation = () => import("@/views/specials/InstallationView.vue");
-const SpecialsComingSoon = () => import("@/views/specials/ComingSoonView.vue");
+// Dashboard
+const DashboardView = () => import("@/views/backend/DashboardView.vue");
+import academicRoutes from '~/academicSetup/routes.js';
+// Academic Setup
+const ProgramsView = () => import("~/academicSetup/views/ProgramsView.vue");
+const ClassesView = () => import("~/academicSetup/views/ClassesView.vue");
+const UnitsView = () => import("~/academicSetup/views/UnitsView.vue");
+const HallsView = () => import("~/academicSetup/views/HallsView.vue");
+const TimetableView = () => import("~/academicSetup/views/TimetableView.vue");
 
-// Auth
-const AuthSignIn3 = () => import("~/auth/views/SignIn3View.vue");
-const AuthSignUp3 = () => import("~/auth/views/SignUp3View.vue");
-const AuthLock3 = () => import("~/auth/views/Lock3View.vue");
-const ReminderView = () => import("~/auth/views/Reminder3View.vue");
+// Users / Roles / Students
+const UsersView = () => import("~/users/views/UsersView.vue");
+const RolesView = () => import("~/roles/views/RolesView.vue");
+const StudentsView = () => import("~/students/views/StudentsView.vue");
+const StudentProfileView = () =>
+  import("~/students/views/StudentProfileView.vue");
+
+// Attendance
+const AttendanceScannerView = () =>
+  import("~/attendance/views/AttendanceScannerView.vue");
+const AttendanceLogsView = () =>
+  import("~/attendance/views/AttendanceLogsView.vue");
+const AttendanceHistoryView = () =>
+  import("~/attendance/views/AttendanceHistoryView.vue");
+const AttendanceReportsView = () =>
+  import("~/attendance/views/AttendanceReportsView.vue");
+
+// Face Recognition / Exam Auth
+const FaceRegistrationView = () =>
+  import("~/faceRecognition/views/FaceRegistrationView.vue");
+const ExamAuthView = () => import("~/exams/views/ExamAuthView.vue");
+const ExamAuthLogsView = () =>
+  import("~/exams/views/ExamAuthLogsView.vue");
+const ExamHistoryView = () =>
+  import("~/exams/views/ExamHistoryView.vue");
 
 // Errors
-const Error400 = () => import("@/views/errors/400View.vue");
-const Error401 = () => import("@/views/errors/401View.vue");
-const Error403 = () => import("@/views/errors/403View.vue");
-const Error404 = () => import("@/views/errors/404View.vue");
-const Error500 = () => import("@/views/errors/500View.vue");
-const Error503 = () => import("@/views/errors/503View.vue");
+const Error403View = () => import("@/views/errors/403View.vue");
+const Error404View = () => import("@/views/errors/404View.vue");
 
-// Set all routes
+// ── Route permission metadata ──────────────────────────────────────────
+// `requiresPermission` — user must have this permission to enter the route.
+// Leave empty / omit for public or auth-only routes.
+
 const routes = [
-  {
-    path: "/",
-    component: LayoutBackend,
-    // 1. ADD THIS HERE: This instantly protects the Dashboard AND 
-    // any future pages you put inside this block!
-    meta: { requiresAuth: true }, 
-    children: [
-      {
-        path: "dashboard",
-        name: "dashboard",
-        component: BackendDashboard,
-        // (We removed the buggy middleware array from here)
-      },
-    ],
-  },
-  
-  {
-    path: "/specials",
-    component: LayoutSimple,
-    children: [
-      { path: "maintenance", name: "specials-maintenance", component: SpecialsMaintenance },
-      { path: "status", name: "specials-status", component: SpecialsStatus },
-      { path: "installation", name: "specials-installation", component: SpecialsInstallation },
-      { path: "coming-soon", name: "specials-coming-soon", component: SpecialsComingSoon },
-    ],
-  },
-  
+  // ── Auth pages (no sidebar) ─────────────────────────────────────────
   {
     path: "/auth",
     component: LayoutSimple,
     children: [
-      { path: "signin3", name: "auth-signin3", component: AuthSignIn3 },
-      { path: "signup3", name: "auth-signup3", component: AuthSignUp3 },
-      { path: "lock3", name: "auth-lock3", component: AuthLock3 },
-      { path: "reminder", name: "reminder", component: ReminderView },
+      { path: "signin3", name: "auth-signin3", component: SignIn3View },
+      { path: "signup3", name: "auth-signup3", component: SignUp3View },
+      { path: "lock3", name: "auth-lock3", component: Lock3View },
+      { path: "reminder", name: "reminder", component: Reminder3View },
     ],
   },
 
+  // ── Errors (no sidebar) ─────────────────────────────────────────────
   {
     path: "/errors",
     component: LayoutSimple,
     children: [
-      { path: "400", name: "error-400", component: Error400 },
-      { path: "401", name: "error-401", component: Error401 },
-      { path: "403", name: "error-403", component: Error403 },
-      { path: "404", name: "error-404", component: Error404 },
-      { path: "500", name: "error-500", component: Error500 },
-      { path: "503", name: "error-503", component: Error503 },
+      { path: "403", name: "error-403", component: Error403View },
+      { path: "404", name: "error-404", component: Error404View },
     ],
   },
+
+  // ── Authenticated backend routes ────────────────────────────────────
+  {
+    path: "/",
+    component: LayoutBackend,
+    meta: { requiresAuth: true },
+    children: [
+      // Dashboard — all authenticated users
+      { path: "", redirect: { name: "dashboard" } },
+      { path: "dashboard", name: "dashboard", component: DashboardView },
+
+      // Academic Setup
+      ...academicRoutes,
+      // User Management
+      {
+        path: "users",
+        name: "users",
+        component: UsersView,
+        meta: { requiresPermission: "users:read" },
+      },
+      {
+        path: "roles",
+        name: "roles",
+        component: RolesView,
+        meta: { requiresPermission: "roles:read" },
+      },
+      {
+        path: "students",
+        name: "students",
+        component: StudentsView,
+        meta: { requiresPermission: "students:read" },
+      },
+      {
+        path: "profile",
+        name: "profile",
+        component: StudentProfileView,
+        meta: { requiresPermission: "students:read_own" },
+      },
+
+      // Attendance
+      {
+        path: "attendance/scan",
+        name: "attendance-scanner",
+        component: AttendanceScannerView,
+        meta: { requiresPermission: "attendance:start_session" },
+      },
+      {
+        path: "attendance/logs",
+        name: "attendance-logs",
+        component: AttendanceLogsView,
+        meta: { requiresPermission: "attendance:read" },
+      },
+      {
+        path: "attendance/reports",
+        name: "attendance-reports",
+        component: AttendanceReportsView,
+        meta: { requiresPermission: "attendance:report" },
+      },
+      {
+        path: "attendance/my",
+        name: "my-attendance",
+        component: AttendanceHistoryView,
+        meta: { requiresPermission: "attendance:read_own" },
+      },
+
+      // Face / Exam Auth
+      {
+        path: "face/register",
+        name: "face-registration",
+        component: FaceRegistrationView,
+        meta: { requiresPermission: "face:upload" },
+      },
+      {
+        path: "exam/auth",
+        name: "exam-auth",
+        component: ExamAuthView,
+        meta: { requiresPermission: "exam_auth:verify" },
+      },
+      {
+        path: "exam/logs",
+        name: "exam-auth-logs",
+        component: ExamAuthLogsView,
+        meta: { requiresPermission: "exam_auth:read" },
+      },
+      {
+        path: "exam/my",
+        name: "exam-history",
+        component: ExamHistoryView,
+        meta: { requiresPermission: "exam_auth:read_own" },
+      },
+    ],
+  },
+
+  // Catch-all
+  { path: "/:pathMatch(.*)*", redirect: { name: "error-404" } },
 ];
 
-// Create Router
+// ── Create router ──────────────────────────────────────────────────────
 const router = createRouter({
   history: createWebHashHistory(),
   linkActiveClass: "active",
   linkExactActiveClass: "",
-  scrollBehavior() {
-    return { left: 0, top: 0 };
-  },
+  scrollBehavior: () => ({ left: 0, top: 0 }),
   routes,
 });
 
-// NProgress
+// ── Guards ─────────────────────────────────────────────────────────────
 NProgress.configure({ showSpinner: false });
 
-router.beforeResolve((to, from, next) => {
-  if (to.name) {
-    NProgress.start();
+router.beforeEach(async (to, _from, next) => {
+  NProgress.start();
+
+  const publicRoutes = [
+    "auth-signin3",
+    "auth-signup3",
+    "reminder",
+    "error-403",
+    "error-404",
+  ];
+
+  // 1. Public routes — always allow
+  if (publicRoutes.includes(to.name)) return next();
+
+  // 2. Lazy-load auth store (avoids circular imports)
+  const { useAuthStore } = await import("@/stores/auth");
+  const authStore = useAuthStore();
+
+  // 3. Restore session if we have a token but no user yet
+  if (authStore.token && !authStore.user) {
+    try {
+      await authStore.restoreSession();
+    } catch (_) {
+      /* handled inside */
+    }
   }
+
+  // 4. Must be authenticated
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return next({ name: "auth-signin3" });
+  }
+
+  // 5. Permission check — backend decided what the user can do
+  if (
+    to.meta.requiresPermission &&
+    !authStore.userCan(to.meta.requiresPermission)
+  ) {
+    return next({ name: "error-403" });
+  }
+
   next();
 });
 
-router.afterEach(() => {
-  NProgress.done();
-});
-
-// GLOBAL AUTH GUARD
-router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore();
-
-  if (!authStore.isAuthenticated && sessionStorage.getItem("user.token")) {
-    authStore.initStore();
-  }
-
-  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-
-  // ADD THIS: If we are going to the lock screen, do NOT allow a redirect back to dashboard
-  if (to.name === 'auth-lock3') {
-    return next();
-  }
-
-  if (requiresAuth && !authStore.isAuthenticated) {
-    next({ name: "auth-signin3" });
-  } else if (to.name === "auth-signin3" && authStore.isAuthenticated) {
-    next({ name: "dashboard" });
-  } else {
-    next();
-  }
-});
+router.afterEach(() => NProgress.done());
 
 export default router;
