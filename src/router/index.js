@@ -17,12 +17,8 @@ const Reminder3View = () => import("~/auth/views/Reminder3View.vue");
 // Dashboard
 const DashboardView = () => import("@/views/backend/DashboardView.vue");
 import academicRoutes from '~/academicSetup/routes.js';
-// Academic Setup
-const ProgramsView = () => import("~/academicSetup/views/ProgramsView.vue");
-const ClassesView = () => import("~/academicSetup/views/ClassesView.vue");
-const UnitsView = () => import("~/academicSetup/views/UnitsView.vue");
-const HallsView = () => import("~/academicSetup/views/HallsView.vue");
-const TimetableView = () => import("~/academicSetup/views/TimetableView.vue");
+
+
 
 // Users / Roles / Students
 const UsersView = () => import("~/users/views/UsersView.vue");

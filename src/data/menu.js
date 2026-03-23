@@ -73,15 +73,15 @@ export default {
     { name: "Dashboard", to: "dashboard", icon: "si si-speedometer" },
     {
       name: "Face Registration",
-      to: "student-face-reg",
+      to: "face-registration",
       icon: "si si-user-following",
     },
-    { name: "My Timetable", to: "student-timetable", icon: "si si-calendar" },
+    { name: "My Timetable", to: "timetable", icon: "si si-calendar" },
     {
       name: "Attendance History",
-      to: "student-attendance",
+      to: "my-attendance",
       icon: "si si-check",
     },
-    { name: "Exam History", to: "student-exam", icon: "si si-check" },
+    { name: "Exam History", to: "exam-history", icon: "si si-check" },
   ],
 };
