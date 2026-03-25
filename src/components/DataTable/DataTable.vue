@@ -157,8 +157,16 @@ const emit = defineEmits([
         #[`cell-${column.field}`]="slotProps"
       >
         <slot :name="`cell-${column.field}`" v-bind="slotProps">
-          <template v-if="slotProps.value && typeof slotProps.value === 'object' && slotProps.value.label">
-            <span :class="`badge bg-${slotProps.value.theme || 'secondary'}`">{{ slotProps.value.label }}</span>
+          <template
+            v-if="
+              slotProps.value &&
+              typeof slotProps.value === 'object' &&
+              slotProps.value.label
+            "
+          >
+            <span :class="`badge bg-${slotProps.value.theme || 'secondary'}`">{{
+              slotProps.value.label
+            }}</span>
           </template>
           <template v-else>{{ slotProps.value }}</template>
         </slot>
@@ -166,6 +174,9 @@ const emit = defineEmits([
     </DataTableBody>
 
     <DataTableFooter
+      :items="generalStore.halls.items"
+      :total="generalStore.halls.total"
+      @page-change="handlePageChange"
       :paginated="paginated"
       :current-page="currentPage"
       :total-pages="totalPages"

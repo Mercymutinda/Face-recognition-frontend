@@ -19,7 +19,6 @@ export const useTemplateStore = defineStore("template", {
     },
 
     // Default template settings
-    // Various of them are also set in each layout variation under layouts/variations/ folder
     settings: {
       colorTheme: "", // 'amethyst', 'city', 'flat', 'modern', 'smooth'
       darkMode: "system", // 'on', 'off', 'system'
