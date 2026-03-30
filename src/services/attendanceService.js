@@ -1,8 +1,11 @@
-import api from '@/utils/api';
+// src/services/attendanceService.js
+import api from "@/utils/api";
 
 export const attendanceService = {
-  
-  getPrograms: (params) => api.post('/attendance/scan', { params }),
-  createProgram: (data) => api.get('/attendance/history', data),
-  updateProgram: (id, data) => api.get(`/attendance/user/${id}`, data),
+  scanFaces: (data) => api.post("/attendance/scan", data),
+
+  getHistory: (params) => api.get("/attendance/history", { params }),
+
+  getUserAttendance: (userId, params) =>
+    api.get(`/attendance/user/${userId}`, { params }),
 };

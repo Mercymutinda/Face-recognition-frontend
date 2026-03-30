@@ -1,1 +1,14 @@
-import api from '@/utils/api';
+// src/services/authService.js
+import api from "@/utils/api";
+
+export const authService = {
+  signup: (data) => api.post("/auth/signup", data),
+
+  login: (data) => api.post("/auth/login", data),
+
+  refresh: (data) => api.post("/auth/refresh", data),
+
+  lockAccount: (data) => api.post("/auth/lock-account", data),
+
+  logout: () => api.post("/auth/logout"),
+};

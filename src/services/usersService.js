@@ -2,10 +2,8 @@
 import api from "@/utils/api";
 
 export const userService = {
-  // PROFILE
   getMyProfile: () => api.get("/users/me"),
 
-  // USERS
   getUsers: (params) => api.get("/users", { params }),
 
   updateUser: (userId, data) => api.patch(`/users/${userId}`, data),
