@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, computed, ref } from "vue";
 import { useTemplateStore } from "@/stores/template";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/authStore";
 import BaseNavigation from "@/components/BaseNavigation.vue";
 
 // SimpleBar, for more info and examples you can check out https://github.com/Grsmto/simplebar/tree/master/packages/simplebar-vue

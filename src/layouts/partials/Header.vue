@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores/authStore";
 
 // Grab example data
 // import notifications from "@/data/notifications";

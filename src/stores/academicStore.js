@@ -7,7 +7,7 @@
 
 import { defineStore } from "pinia";
 import api from "@/utils/api";
-
+import { academicService } from "@/services/academicService";
 // ── Default pagination state factory ─────────────────────────────────────────
 const defaultMeta = () => ({ page: 1, limit: 10, total: 0 });
 
@@ -41,7 +41,13 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
       timetable: defaultMeta(),
     },
 
-    loading: false,
+    loading: {
+      programs: false,
+      cohorts: false,
+      units: false,
+      halls: false,
+      timetable: false,
+    },
     error:   null,
   }),
 
@@ -56,10 +62,10 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     // ── PROGRAMS ────────────────────────────────────────────────────────────
 
     async fetchPrograms(params = {}) {
-      this.loading = true;
+      this.loading.programs = true;
       this.error   = null;
       try {
-        const { data } = await api.get("/academic/programs", { params });
+        const { data } = await academicService.getPrograms(params);
         const { items, meta } = unwrapList(data);
         this.programs      = items;
         this.meta.programs = meta;
@@ -67,12 +73,12 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         this.error = _errMsg(err);
         throw err;
       } finally {
-        this.loading = false;
+        this.loading.programs = false;
       }
     },
 
     async createProgram(payload) {
-      const { data } = await api.post("/academic/programs", payload);
+      const { data } = await academicService.createProgram(payload);
       await this.fetchPrograms();
       return data;
     },
@@ -91,7 +97,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     // ── COHORTS (CLASSES) ────────────────────────────────────────────────────
 
     async fetchClasses(params = {}) {
-      this.loading = true;
+      this.loading.cohorts = true;
       this.error   = null;
       try {
         const { data } = await api.get("/academic/cohorts", { params });
@@ -102,7 +108,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         this.error = _errMsg(err);
         throw err;
       } finally {
-        this.loading = false;
+        this.loading.cohorts = false;
       }
     },
 
@@ -126,7 +132,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     // ── UNITS ────────────────────────────────────────────────────────────────
 
     async fetchUnits(params = {}) {
-      this.loading = true;
+      this.loading.units = true;
       this.error   = null;
       try {
         const { data } = await api.get("/academic/units", { params });
@@ -137,7 +143,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         this.error = _errMsg(err);
         throw err;
       } finally {
-        this.loading = false;
+        this.loading.units = false;
       }
     },
 
@@ -161,7 +167,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     // ── HALLS ────────────────────────────────────────────────────────────────
 
     async fetchHalls(params = {}) {
-      this.loading = true;
+      this.loading.halls = true;
       this.error   = null;
       try {
         const { data } = await api.get("/academic/halls", { params });
@@ -172,7 +178,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         this.error = _errMsg(err);
         throw err;
       } finally {
-        this.loading = false;
+        this.loading.halls = false;
       }
     },
 
@@ -196,7 +202,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     // ── TIMETABLE ────────────────────────────────────────────────────────────
 
     async fetchTimetable(params = {}) {
-      this.loading = true;
+      this.loading.timetable = true;
       this.error   = null;
       try {
         const { data } = await api.get("/academic/timetable", { params });
@@ -207,7 +213,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         this.error = _errMsg(err);
         throw err;
       } finally {
-        this.loading = false;
+        this.loading.timetable = false;
       }
     },
 

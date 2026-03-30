@@ -1,5 +1,6 @@
+// src/utils/api.js
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
+import { useAuthStore } from '@/stores/authStore';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
@@ -7,24 +8,50 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Automatically inject JWT token into every request header
+//  REQUEST INTERCEPTOR (Attach token)
 api.interceptors.request.use((config) => {
   const authStore = useAuthStore();
-  const token = authStore.user.token;
+
+  const token = authStore.accessToken; //  FIXED
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
-// Handle global errors like 401 (Unauthorized)
+// RESPONSE INTERCEPTOR (Handle 401 + Refresh)
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      const authStore = useAuthStore();
-      authStore.logOut(); // Force logout if token expires
+
+  async (error) => {
+    const authStore = useAuthStore();
+
+    const originalRequest = error.config;
+
+    //  Prevent infinite loop
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        //  Try refresh
+        const newToken = await authStore.refreshToken();
+
+        // Attach new token
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        // Retry original request
+        return api(originalRequest);
+
+      } catch (refreshError) {
+        console.error('Refresh failed, logging out');
+
+        authStore.logout(); //  FIXED
+        return Promise.reject(refreshError);
+      }
     }
+
     return Promise.reject(error);
   }
 );

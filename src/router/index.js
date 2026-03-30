@@ -200,7 +200,7 @@ router.beforeEach(async (to, _from, next) => {
   if (publicRoutes.includes(to.name)) return next();
 
   // 2. Lazy-load auth store (avoids circular imports)
-  const { useAuthStore } = await import("@/stores/auth");
+  const { useAuthStore } = await import("@/stores/authStore");
   const authStore = useAuthStore();
 
   // 3. Restore session if we have a token but no user yet

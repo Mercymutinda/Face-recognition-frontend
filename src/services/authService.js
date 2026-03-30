@@ -6,9 +6,9 @@ export const authService = {
 
   login: (data) => api.post("/auth/login", data),
 
-  refresh: (data) => api.post("/auth/refresh", data),
-
-  lockAccount: (data) => api.post("/auth/lock-account", data),
+  refresh: () => api.post("/auth/refresh"),
 
   logout: () => api.post("/auth/logout"),
+
+  lockAccount: (data) => api.post("/auth/lock-account", data),
 };
