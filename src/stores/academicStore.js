@@ -1,43 +1,38 @@
 // src/stores/academicStore.js
-// ─────────────────────────────────────────────────────────────────────────────
-// Centralized store for all academic data.
-// Pagination shape matches the FastAPI backend:
-//   { items: [...], meta: { page, limit, total } }
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { defineStore } from "pinia";
-import api from "@/utils/api";
 import { academicService } from "@/services/academicService";
-// ── Default pagination state factory ─────────────────────────────────────────
+
+// ── Default pagination state ────────────────────────────────────────────────
 const defaultMeta = () => ({ page: 1, limit: 10, total: 0 });
 
-// ── Helper: unwrap backend list responses ────────────────────────────────────
-// Backend may return { items, meta } OR a plain array depending on the endpoint.
+// ── Helper: unwrap backend responses ────────────────────────────────────────
 function unwrapList(data) {
   if (Array.isArray(data)) {
-    return { items: data, meta: { page: 1, limit: data.length, total: data.length } };
+    return {
+      items: data,
+      meta: { page: 1, limit: data.length, total: data.length },
+    };
   }
   return {
     items: data?.items ?? [],
-    meta:  data?.meta  ?? defaultMeta(),
+    meta: data?.meta ?? defaultMeta(),
   };
 }
 
 export const useAcademicSetupStore = defineStore("academicSetup", {
-  // ── State ──────────────────────────────────────────────────────────────────
+  // ── STATE ────────────────────────────────────────────────────────────────
   state: () => ({
-    programs:  [],
-    cohorts:   [],   // called "classes" in the UI
-    units:     [],
-    halls:     [],
+    programs: [],
+    cohorts: [],
+    units: [],
+    halls: [],
     timetable: [],
 
-    // Per-resource pagination metadata
     meta: {
-      programs:  defaultMeta(),
-      cohorts:   defaultMeta(),
-      units:     defaultMeta(),
-      halls:     defaultMeta(),
+      programs: defaultMeta(),
+      cohorts: defaultMeta(),
+      units: defaultMeta(),
+      halls: defaultMeta(),
       timetable: defaultMeta(),
     },
 
@@ -48,26 +43,26 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
       halls: false,
       timetable: false,
     },
-    error:   null,
+
+    error: null,
   }),
 
-  // ── Getters ────────────────────────────────────────────────────────────────
+  // ── GETTERS ──────────────────────────────────────────────────────────────
   getters: {
-    /** Alias so old template code using store.classes still works */
     classes: (state) => state.cohorts,
   },
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── ACTIONS ──────────────────────────────────────────────────────────────
   actions: {
-    // ── PROGRAMS ────────────────────────────────────────────────────────────
-
+    // ───────── PROGRAMS ─────────
     async fetchPrograms(params = {}) {
       this.loading.programs = true;
-      this.error   = null;
+      this.error = null;
       try {
         const { data } = await academicService.getPrograms(params);
         const { items, meta } = unwrapList(data);
-        this.programs      = items;
+
+        this.programs = items;
         this.meta.programs = meta;
       } catch (err) {
         this.error = _errMsg(err);
@@ -78,31 +73,38 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     },
 
     async createProgram(payload) {
-      const { data } = await academicService.createProgram(payload);
-      await this.fetchPrograms();
-      return data;
+      await academicService.createProgram(payload);
+      await this.fetchPrograms({
+        page: this.meta.programs.page,
+        limit: this.meta.programs.limit,
+      });
     },
 
     async updateProgram(id, payload) {
-      const { data } = await api.patch(`/academic/programs/${id}`, payload);
-      this.programs = this.programs.map((p) => (p.id === id ? data : p));
-      return data;
+      await academicService.updateProgram(id, payload);
+      await this.fetchPrograms({
+        page: this.meta.programs.page,
+        limit: this.meta.programs.limit,
+      });
     },
 
     async deleteProgram(id) {
-      await api.delete(`/academic/programs/${id}`);
-      this.programs = this.programs.filter((p) => p.id !== id);
+      await academicService.deleteProgram(id);
+      await this.fetchPrograms({
+        page: this.meta.programs.page,
+        limit: this.meta.programs.limit,
+      });
     },
 
-    // ── COHORTS (CLASSES) ────────────────────────────────────────────────────
-
+    // ───────── COHORTS ─────────
     async fetchClasses(params = {}) {
       this.loading.cohorts = true;
-      this.error   = null;
+      this.error = null;
       try {
-        const { data } = await api.get("/academic/cohorts", { params });
+        const { data } = await academicService.getCohorts(params);
         const { items, meta } = unwrapList(data);
-        this.cohorts      = items;
+
+        this.cohorts = items;
         this.meta.cohorts = meta;
       } catch (err) {
         this.error = _errMsg(err);
@@ -113,31 +115,38 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     },
 
     async createClass(payload) {
-      const { data } = await api.post("/academic/cohorts", payload);
-      this.cohorts.push(data);
-      return data;
+      await academicService.createCohort(payload);
+      await this.fetchClasses({
+        page: this.meta.cohorts.page,
+        limit: this.meta.cohorts.limit,
+      });
     },
 
     async updateClass(id, payload) {
-      const { data } = await api.patch(`/academic/cohorts/${id}`, payload);
-      this.cohorts = this.cohorts.map((c) => (c.id === id ? data : c));
-      return data;
+      await academicService.updateCohort(id, payload);
+      await this.fetchClasses({
+        page: this.meta.cohorts.page,
+        limit: this.meta.cohorts.limit,
+      });
     },
 
     async deleteClass(id) {
-      await api.delete(`/academic/cohorts/${id}`);
-      this.cohorts = this.cohorts.filter((c) => c.id !== id);
+      await academicService.deleteCohort(id);
+      await this.fetchClasses({
+        page: this.meta.cohorts.page,
+        limit: this.meta.cohorts.limit,
+      });
     },
 
-    // ── UNITS ────────────────────────────────────────────────────────────────
-
+    // ───────── UNITS ─────────
     async fetchUnits(params = {}) {
       this.loading.units = true;
-      this.error   = null;
+      this.error = null;
       try {
-        const { data } = await api.get("/academic/units", { params });
+        const { data } = await academicService.getUnits(params);
         const { items, meta } = unwrapList(data);
-        this.units      = items;
+
+        this.units = items;
         this.meta.units = meta;
       } catch (err) {
         this.error = _errMsg(err);
@@ -148,31 +157,38 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     },
 
     async createUnit(payload) {
-      const { data } = await api.post("/academic/units", payload);
-      this.units.push(data);
-      return data;
+      await academicService.createUnit(payload);
+      await this.fetchUnits({
+        page: this.meta.units.page,
+        limit: this.meta.units.limit,
+      });
     },
 
     async updateUnit(id, payload) {
-      const { data } = await api.patch(`/academic/units/${id}`, payload);
-      this.units = this.units.map((u) => (u.id === id ? data : u));
-      return data;
+      await academicService.updateUnit(id, payload);
+      await this.fetchUnits({
+        page: this.meta.units.page,
+        limit: this.meta.units.limit,
+      });
     },
 
     async deleteUnit(id) {
-      await api.delete(`/academic/units/${id}`);
-      this.units = this.units.filter((u) => u.id !== id);
+      await academicService.deleteUnit(id);
+      await this.fetchUnits({
+        page: this.meta.units.page,
+        limit: this.meta.units.limit,
+      });
     },
 
-    // ── HALLS ────────────────────────────────────────────────────────────────
-
+    // ───────── HALLS ─────────
     async fetchHalls(params = {}) {
       this.loading.halls = true;
-      this.error   = null;
+      this.error = null;
       try {
-        const { data } = await api.get("/academic/halls", { params });
+        const { data } = await academicService.getHalls(params);
         const { items, meta } = unwrapList(data);
-        this.halls      = items;
+
+        this.halls = items;
         this.meta.halls = meta;
       } catch (err) {
         this.error = _errMsg(err);
@@ -183,31 +199,38 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     },
 
     async createHall(payload) {
-      const { data } = await api.post("/academic/halls", payload);
-      this.halls.push(data);
-      return data;
+      await academicService.createHall(payload);
+      await this.fetchHalls({
+        page: this.meta.halls.page,
+        limit: this.meta.halls.limit,
+      });
     },
 
     async updateHall(id, payload) {
-      const { data } = await api.patch(`/academic/halls/${id}`, payload);
-      this.halls = this.halls.map((h) => (h.id === id ? data : h));
-      return data;
+      await academicService.updateHall(id, payload);
+      await this.fetchHalls({
+        page: this.meta.halls.page,
+        limit: this.meta.halls.limit,
+      });
     },
 
     async deleteHall(id) {
-      await api.delete(`/academic/halls/${id}`);
-      this.halls = this.halls.filter((h) => h.id !== id);
+      await academicService.deleteHall(id);
+      await this.fetchHalls({
+        page: this.meta.halls.page,
+        limit: this.meta.halls.limit,
+      });
     },
 
-    // ── TIMETABLE ────────────────────────────────────────────────────────────
-
+    // ───────── TIMETABLE ─────────
     async fetchTimetable(params = {}) {
       this.loading.timetable = true;
-      this.error   = null;
+      this.error = null;
       try {
-        const { data } = await api.get("/academic/timetable", { params });
+        const { data } = await academicService.getTimetable(params);
         const { items, meta } = unwrapList(data);
-        this.timetable      = items;
+
+        this.timetable = items;
         this.meta.timetable = meta;
       } catch (err) {
         this.error = _errMsg(err);
@@ -218,49 +241,66 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     },
 
     async createTimetableEntry(payload) {
-      const { data } = await api.post("/academic/timetable", payload);
-      this.timetable.push(data);
-      return data;
+      await academicService.createTimetable(payload);
+      await this.fetchTimetable({
+        page: this.meta.timetable.page,
+        limit: this.meta.timetable.limit,
+      });
     },
 
     async updateTimetableEntry(id, payload) {
-      const { data } = await api.patch(`/academic/timetable/${id}`, payload);
-      this.timetable = this.timetable.map((t) => (t.id === id ? data : t));
-      return data;
+      await academicService.updateTimetable(id, payload);
+      await this.fetchTimetable({
+        page: this.meta.timetable.page,
+        limit: this.meta.timetable.limit,
+      });
     },
 
     async deleteTimetableEntry(id) {
-      await api.delete(`/academic/timetable/${id}`);
-      this.timetable = this.timetable.filter((t) => t.id !== id);
+      await academicService.deleteTimetable(id);
+      await this.fetchTimetable({
+        page: this.meta.timetable.page,
+        limit: this.meta.timetable.limit,
+      });
     },
 
-    // ── SESSIONS ─────────────────────────────────────────────────────────────
-
+    // ───────── SESSIONS ─────────
     async startSession(payload) {
-      const { data } = await api.post("/academic/sessions", payload);
+      const { data } = await academicService.startSession(payload);
       return data;
     },
 
     async endSession(sessionId) {
-      await api.patch(`/academic/sessions/${sessionId}/end`);
+      await academicService.endSession(sessionId);
     },
 
- 
+    // ───────── PAGINATION ─────────
     async changePage(resource, page) {
-      const methodMap = {
-        programs:  () => this.fetchPrograms({ page, limit: this.meta.programs.limit }),
-        cohorts:   () => this.fetchClasses({ page,  limit: this.meta.cohorts.limit }),
-        units:     () => this.fetchUnits({ page,    limit: this.meta.units.limit }),
-        halls:     () => this.fetchHalls({ page,    limit: this.meta.halls.limit }),
-        timetable: () => this.fetchTimetable({ page, limit: this.meta.timetable.limit }),
+      const map = {
+        programs: () =>
+          this.fetchPrograms({ page, limit: this.meta.programs.limit }),
+
+        cohorts: () =>
+          this.fetchClasses({ page, limit: this.meta.cohorts.limit }),
+
+        units: () =>
+          this.fetchUnits({ page, limit: this.meta.units.limit }),
+
+        halls: () =>
+          this.fetchHalls({ page, limit: this.meta.halls.limit }),
+
+        timetable: () =>
+          this.fetchTimetable({ page, limit: this.meta.timetable.limit }),
       };
-      const fn = methodMap[resource];
-      if (fn) await fn();
+
+      if (map[resource]) {
+        await map[resource]();
+      }
     },
   },
 });
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
+// ── ERROR HELPER ────────────────────────────────────────────────────────────
 function _errMsg(err) {
   return (
     err?.response?.data?.detail ??
