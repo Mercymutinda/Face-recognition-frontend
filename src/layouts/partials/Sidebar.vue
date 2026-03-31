@@ -4,8 +4,6 @@ import { useTemplateStore } from "@/stores/template";
 import { useAuthStore } from "@/stores/authStore";
 import BaseNavigation from "@/components/BaseNavigation.vue";
 
-// SimpleBar, for more info and examples you can check out https://github.com/Grsmto/simplebar/tree/master/packages/simplebar-vue
-import SimpleBar from "simplebar";
 
 // Grab menu navigation arrays
 import menu from "@/data/menu";

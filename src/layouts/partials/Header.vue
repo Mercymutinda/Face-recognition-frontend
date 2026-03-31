@@ -34,10 +34,11 @@ const onLockAccount = async () => {
 onMounted(() => {
   document.addEventListener("keydown", eventHeaderSearch);
 });
-const onLogout = async () => {
-  await authStore.logOut();
-  router.push({ name: "auth-signin3" }); // Adjust name if your route differs
-};
+// Header.vue
+async function onLogout() {
+  await authStore.logout(); // Correct casing to match authStore.js
+  router.push({ name: 'auth-signin3' });
+}
 // Remove keydown event listener
 onUnmounted(() => {
   document.removeEventListener("keydown", eventHeaderSearch);

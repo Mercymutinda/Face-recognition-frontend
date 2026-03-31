@@ -17,6 +17,11 @@ export const useAuthStore = defineStore("auth", {
   },
 
   actions: {
+    hasRole(role) {
+      if (!this.user || !this.user.roles) return false;
+      return this.user.roles.includes(role);
+    },
+
     // LOGIN
     async login(payload) {
       try {
