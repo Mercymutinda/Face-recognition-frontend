@@ -1,57 +1,97 @@
 <script setup>
 import { ref, onMounted } from "vue";
-
 import { useAcademicSetupStore } from "@/stores/academicStore.js";
-
 import { useAuthStore } from "@/stores/authStore";
+import DataTable from "@/components/DataTable/DataTable.vue";
 
 const store = useAcademicSetupStore();
-
 const authStore = useAuthStore();
 
+// UI State
 const showModal = ref(false);
-
 const editing = ref(null);
-
 const saving = ref(false);
+const viewMode = ref(false);
 
+// Form State
 const form = ref({ code: "", name: "", description: "" });
+
+// Table Columns
+const columns = [
+  { field: "code", header: "Code", width: "120px" },
+  { field: "name", header: "Program Name" },
+  { field: "description", header: "Description" },
+];
 
 onMounted(() => store.fetchPrograms());
 
+/**
+ * Triggered by the "New Program" button
+ */
 function openCreate() {
   editing.value = null;
-
+  viewMode.value = false;
   form.value = { code: "", name: "", description: "" };
-
   showModal.value = true;
 }
 
+/**
+ * Triggered by DataTable @edit
+ */
 function openEdit(p) {
   editing.value = p;
-
+  viewMode.value = false;
   form.value = { code: p.code, name: p.name, description: p.description || "" };
-
   showModal.value = true;
 }
 
+/**
+ * Triggered by DataTable @view
+ */
+function openView(p) {
+  editing.value = p;
+  viewMode.value = true;
+  form.value = { code: p.code, name: p.name, description: p.description || "" };
+  showModal.value = true;
+}
+
+/**
+ * Handles Create and Update logic
+ */
 async function save() {
-  saving.value = true;
-
-  try {
-    if (editing.value) await store.updateProgram(editing.value.id, form.value);
-    else await store.createProgram(form.value);
-
+  if (viewMode.value) {
     showModal.value = false;
+    return;
+  }
+
+  saving.value = true;
+  try {
+    if (editing.value) {
+      await store.updateProgram(editing.value.id, form.value);
+    } else {
+      await store.createProgram(form.value);
+    }
+    showModal.value = false;
+  } catch (error) {
+    console.error("Save error:", error);
   } finally {
     saving.value = false;
   }
 }
 
+/**
+ * Triggered by DataTable @delete
+ */
 async function deactivate(p) {
-  if (!confirm(`Deactivate "${p.name}"?`)) return;
+  // Confirm deletion
+  if (!confirm(`Are you sure you want to deactivate "${p.name}"?`)) return;
 
-  await store.deleteProgram(p.id);
+  try {
+    // Calls the delete action in your academicStore.js
+    await store.deleteProgram(p.id);
+  } catch (error) {
+    console.error("Deletion error:", error);
+  }
 }
 </script>
 
@@ -61,8 +101,6 @@ async function deactivate(p) {
     subtitle="Degree and diploma programmes offered"
   >
     <template #extra>
-      <!-- Only show if backend granted programs:write -->
-
       <button
         v-if="authStore.userCan('programs:write')"
         class="btn btn-primary btn-sm"
@@ -74,114 +112,73 @@ async function deactivate(p) {
   </BasePageHeading>
 
   <div class="content">
-    <div v-if="store.loading" class="text-center py-5">
-      <div class="spinner-border" style="color: #e65f0e"></div>
-    </div>
-
-    <div v-else class="row g-3">
-      <div v-for="p in store.programs" :key="p.id" class="col-sm-6 col-lg-4">
-        <BaseBlock class="mb-0 h-100">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <span
-                class="badge mb-2 px-2 py-1"
-                style="background: #415a20; font-size: 11px"
-                >{{ p.code }}</span
-              >
-
-              <div class="fw-semibold">{{ p.name }}</div>
-
-              <div class="text-muted mt-1" style="font-size: 12.5px">
-                {{ p.description || "No description." }}
-              </div>
-            </div>
-
-            <!-- Edit/Deactivate only for users with write permission -->
-
-            <div
-              v-if="authStore.userCan('programs:write')"
-              class="dropdown ms-2 flex-shrink-0"
-            >
-              <button
-                class="btn btn-sm btn-alt-secondary px-2"
-                data-bs-toggle="dropdown"
-              >
-                <i class="fa fa-ellipsis-v"></i>
-              </button>
-
-              <div class="dropdown-menu dropdown-menu-end border-0">
-                <button class="dropdown-item fs-sm" @click="openEdit(p)">
-                  <i class="si si-pencil me-2"></i> Edit
-                </button>
-
-                <button
-                  v-if="authStore.userCan('programs:delete')"
-                  class="dropdown-item fs-sm text-danger"
-                  @click="deactivate(p)"
-                >
-                  <i class="si si-trash me-2"></i> Deactivate
-                </button>
-              </div>
-            </div>
-          </div>
-        </BaseBlock>
-      </div>
-
-      <div
-        v-if="!store.programs.length"
-        class="col-12 text-center py-5 text-muted"
-      >
-        No programs found.
-        <span v-if="authStore.userCan('programs:write')"
-          >Create the first one!</span
-        >
-      </div>
-    </div>
+    <DataTable
+      title="Academic Programs"
+      :columns="columns"
+      :data="store.programs"
+      :loading="store.loading.programs"
+      :total-count="store.meta.programs.total"
+      :current-page="store.meta.programs.page"
+      :total-pages="
+        Math.ceil(store.meta.programs.total / store.meta.programs.limit)
+      "
+      :actions="
+        authStore.userCan('programs:write')
+          ? ['view', 'edit', 'delete']
+          : ['view']
+      "
+      @view="openView"
+      @edit="openEdit"
+      @delete="deactivate"
+      @change-page="(p) => store.changePage('programs', p)"
+    />
   </div>
 
   <BaseModal
     :show-modal="showModal"
-    :title="editing ? 'Edit Program' : 'New Program'"
+    :title="
+      viewMode ? 'Program Details' : editing ? 'Edit Program' : 'New Program'
+    "
     @close="showModal = false"
   >
-    <div class="mb-3">
-      <label class="form-label fw-medium">Code *</label>
-
-      <input
-        v-model="form.code"
-        type="text"
-        class="form-control"
-        placeholder="e.g. BSCS"
-      />
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label fw-medium">Name *</label>
-
-      <input
-        v-model="form.name"
-        type="text"
-        class="form-control"
-        placeholder="Bachelor of Science in Computer Science"
-      />
-    </div>
-
-    <div>
-      <label class="form-label fw-medium">Description</label>
-
-      <textarea
-        v-model="form.description"
-        class="form-control"
-        rows="3"
-      ></textarea>
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label fw-medium">Code </label>
+        <input
+          v-model="form.code"
+          type="text"
+          class="form-control"
+          :readonly="viewMode"
+          required
+        />
+      </div>
+      <div class="col-12">
+        <label class="form-label fw-medium">Name </label>
+        <input
+          v-model="form.name"
+          type="text"
+          class="form-control"
+          :readonly="viewMode"
+          required
+        />
+      </div>
+      <div class="col-12">
+        <label class="form-label fw-medium">Description</label>
+        <textarea
+          v-model="form.description"
+          class="form-control"
+          rows="3"
+          :readonly="viewMode"
+        ></textarea>
+      </div>
     </div>
 
     <template #footer>
       <button class="btn btn-alt-secondary" @click="showModal = false">
-        Cancel
+        {{ viewMode ? "Close" : "Cancel" }}
       </button>
-
       <button
+        v-if="!viewMode"
         class="btn btn-primary"
         @click="save"
         :disabled="saving || !form.code || !form.name"
@@ -190,7 +187,6 @@ async function deactivate(p) {
           v-if="saving"
           class="spinner-border spinner-border-sm me-1"
         ></span>
-
         {{ editing ? "Save Changes" : "Create Program" }}
       </button>
     </template>
