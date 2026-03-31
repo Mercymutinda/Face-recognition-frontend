@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useAcademicSetupStore } from "@/stores/academicSetupStore";
+import { useAcademicSetupStore } from "@/stores/academicStore.js";
 import { useAuthStore } from "@/stores/authStore";
 
 const store     = useAcademicSetupStore();
