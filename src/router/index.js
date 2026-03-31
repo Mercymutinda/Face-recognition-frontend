@@ -56,7 +56,7 @@ const routes = [
       { path: "", redirect: { name: "dashboard" } },
       { path: "dashboard", name: "dashboard", component: DashboardView },
 
-      // ✅ ALL MODULES
+      
       ...academicRoutes,
       ...userRoutes,
       ...roleRoutes,

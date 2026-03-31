@@ -12,14 +12,16 @@ export const useAuthStore = defineStore("auth", {
     isAuthenticated: (state) => !!state.accessToken,
 
     userCan: (state) => (role) => {
-      return state.user?.roles?.includes(role);
+      if (!state.user?.roles) return false;
+      return state.user.roles.some(r => r.toUpperCase() === role.toUpperCase());
     },
   },
 
   actions: {
     hasRole(role) {
       if (!this.user || !this.user.roles) return false;
-      return this.user.roles.includes(role);
+      // Normalize both to uppercase to prevent casing errors
+      return this.user.roles.some(r => r.toUpperCase() === role.toUpperCase());
     },
 
     // LOGIN

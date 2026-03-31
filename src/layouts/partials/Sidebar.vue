@@ -1,18 +1,13 @@
 <script setup>
-import { onMounted, computed, ref } from "vue";
+import { onMounted, computed } from "vue";
 import { useTemplateStore } from "@/stores/template";
 import { useAuthStore } from "@/stores/authStore";
 import BaseNavigation from "@/components/BaseNavigation.vue";
-
+import menu from "@/data/menu";
 
 // Grab menu navigation arrays
-import menu from "@/data/menu";
 const authStore = useAuthStore();
-const navigation = computed(() => {
-  if (authStore.hasRole('ADMIN')) return menu.admin;
-  if (authStore.hasRole('LECTURER')) return menu.lecturer;
-  return menu.student;
-});
+
 // Component properties
 defineProps({
   withMiniNav: {
@@ -21,14 +16,16 @@ defineProps({
     description: "If the sidebar is in Mini Nav Mode",
   },
 });
-
+const navigation = computed(() => {
+  if (authStore.hasRole("ADMIN")) return menu.admin;
+  if (authStore.hasRole("LECTURER")) return menu.lecturer;
+  if (authStore.hasRole("STUDENT")) return menu.student;
+  return []; // Default empty for guests
+});
 // Main store
 const store = useTemplateStore();
 
-// Init SimpleBar (custom scrolling)
-onMounted(() => {
-  // new SimpleBar(document.getElementById("simplebar-sidebar"));
-});
+
 </script>
 
 <template>

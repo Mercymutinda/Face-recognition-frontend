@@ -1,33 +1,38 @@
+import { useRequireRoleGuard } from "@/middleware/requireRole"; // <--- ADD THIS
 const academicRoutes = [
   {
     path: "academic/programs",
     name: "programs",
     component: () => import("./views/ProgramsView.vue"),
-    meta: { requiresPermission: "academic:read" },
+    beforeEnter: useRequireRoleGuard('ADMIN')
   },
   {
     path: "academic/halls",
     name: "halls",
     component: () => import("./views/HallsView.vue"),
-    meta: { requiresPermission: "academic:read" },
+    beforeEnter: useRequireRoleGuard('ADMIN')
+
   },
   {
     path: "academic/classes",
     name: "classes",
     component: () => import("./views/ClassesView.vue"),
-    meta: { requiresPermission: "academic:read" },
+    beforeEnter: useRequireRoleGuard('ADMIN')
+
   },
   {
     path: "academic/units",
     name: "units",
     component: () => import("./views/UnitsView.vue"),
-    meta: { requiresPermission: "academic:read" },
+    beforeEnter: useRequireRoleGuard('ADMIN')
+
   },
   {
     path: "academic/timetable",
     name: "timetable",
     component: () => import("./views/TimetableView.vue"),
-    meta: { requiresPermission: "academic:read" },
+    beforeEnter: useRequireRoleGuard('ADMIN')
+
   },
 ];
 
