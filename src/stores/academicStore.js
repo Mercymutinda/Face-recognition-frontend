@@ -1,6 +1,6 @@
-// src/stores/academicStore.js
 import { defineStore } from "pinia";
 import { academicService } from "@/services/academicService";
+import { useAlert } from "@/composables/alerts";
 
 // ── Default pagination state ────────────────────────────────────────────────
 const defaultMeta = () => ({ page: 1, limit: 10, total: 0 });
@@ -20,10 +20,9 @@ function unwrapList(data) {
 }
 
 export const useAcademicSetupStore = defineStore("academicSetup", {
-  // ── STATE ────────────────────────────────────────────────────────────────
   state: () => ({
     programs: [],
-    cohorts: [],
+    cohorts: [], // Used for Classes
     units: [],
     halls: [],
     timetable: [],
@@ -47,231 +46,271 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
     error: null,
   }),
 
-  // ── GETTERS ──────────────────────────────────────────────────────────────
   getters: {
+    // Alias cohorts to classes for frontend consistency
     classes: (state) => state.cohorts,
   },
 
-  // ── ACTIONS ──────────────────────────────────────────────────────────────
   actions: {
     // ───────── PROGRAMS ─────────
+    // Schema: { code, name, description }
     async fetchPrograms(params = {}) {
+      const { toastError } = useAlert();
       this.loading.programs = true;
       this.error = null;
       try {
         const { data } = await academicService.getPrograms(params);
         const { items, meta } = unwrapList(data);
-
         this.programs = items;
         this.meta.programs = meta;
       } catch (err) {
         this.error = _errMsg(err);
-        throw err;
+        toastError("Error", this.error);
       } finally {
         this.loading.programs = false;
       }
     },
 
     async createProgram(payload) {
-      await academicService.createProgram(payload);
-      await this.fetchPrograms({
-        page: this.meta.programs.page,
-        limit: this.meta.programs.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.createProgram(payload);
+        toastSuccess("Success", "Program created successfully");
+        await this.fetchPrograms({
+          page: this.meta.programs.page,
+          limit: this.meta.programs.limit,
+        });
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async updateProgram(id, payload) {
-      await academicService.updateProgram(id, payload);
-      await this.fetchPrograms({
-        page: this.meta.programs.page,
-        limit: this.meta.programs.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.updateProgram(id, payload);
+        toastSuccess("Success", "Program updated successfully");
+        await this.fetchPrograms({
+          page: this.meta.programs.page,
+          limit: this.meta.programs.limit,
+        });
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async deleteProgram(id) {
-      await academicService.deleteProgram(id);
-      await this.fetchPrograms({
-        page: this.meta.programs.page,
-        limit: this.meta.programs.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.deleteProgram(id);
+        toastSuccess("Deleted", "Program removed");
+        await this.fetchPrograms({
+          page: this.meta.programs.page,
+          limit: this.meta.programs.limit,
+        });
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
-    // ───────── COHORTS ─────────
+    // ───────── COHORTS (CLASSES) ─────────
+    // Schema: { name, program_id, year_of_study }
     async fetchClasses(params = {}) {
+      const { toastError } = useAlert();
       this.loading.cohorts = true;
-      this.error = null;
       try {
         const { data } = await academicService.getCohorts(params);
         const { items, meta } = unwrapList(data);
-
         this.cohorts = items;
         this.meta.cohorts = meta;
       } catch (err) {
-        this.error = _errMsg(err);
-        throw err;
+        toastError("Error", _errMsg(err));
       } finally {
         this.loading.cohorts = false;
       }
     },
 
     async createClass(payload) {
-      await academicService.createCohort(payload);
-      await this.fetchClasses({
-        page: this.meta.cohorts.page,
-        limit: this.meta.cohorts.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.createCohort(payload);
+        toastSuccess("Success", "Class created");
+        await this.fetchClasses();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async updateClass(id, payload) {
-      await academicService.updateCohort(id, payload);
-      await this.fetchClasses({
-        page: this.meta.cohorts.page,
-        limit: this.meta.cohorts.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.updateCohort(id, payload);
+        toastSuccess("Success", "Class updated");
+        await this.fetchClasses();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async deleteClass(id) {
-      await academicService.deleteCohort(id);
-      await this.fetchClasses({
-        page: this.meta.cohorts.page,
-        limit: this.meta.cohorts.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.deleteCohort(id);
+        toastSuccess("Deleted", "Class removed");
+        await this.fetchClasses();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     // ───────── UNITS ─────────
+    // Schema: { code, name, program_id, year_of_study }
     async fetchUnits(params = {}) {
+      const { toastError } = useAlert();
       this.loading.units = true;
-      this.error = null;
       try {
         const { data } = await academicService.getUnits(params);
         const { items, meta } = unwrapList(data);
-
         this.units = items;
         this.meta.units = meta;
       } catch (err) {
-        this.error = _errMsg(err);
-        throw err;
+        toastError("Error", _errMsg(err));
       } finally {
         this.loading.units = false;
       }
     },
 
     async createUnit(payload) {
-      await academicService.createUnit(payload);
-      await this.fetchUnits({
-        page: this.meta.units.page,
-        limit: this.meta.units.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.createUnit(payload);
+        toastSuccess("Success", "Unit created");
+        await this.fetchUnits();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async updateUnit(id, payload) {
-      await academicService.updateUnit(id, payload);
-      await this.fetchUnits({
-        page: this.meta.units.page,
-        limit: this.meta.units.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.updateUnit(id, payload);
+        toastSuccess("Success", "Unit updated");
+        await this.fetchUnits();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async deleteUnit(id) {
-      await academicService.deleteUnit(id);
-      await this.fetchUnits({
-        page: this.meta.units.page,
-        limit: this.meta.units.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.deleteUnit(id);
+        toastSuccess("Deleted", "Unit removed");
+        await this.fetchUnits();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     // ───────── HALLS ─────────
+    // Schema: { name, building, capacity, has_camera }
     async fetchHalls(params = {}) {
+      const { toastError } = useAlert();
       this.loading.halls = true;
-      this.error = null;
       try {
         const { data } = await academicService.getHalls(params);
         const { items, meta } = unwrapList(data);
-
         this.halls = items;
         this.meta.halls = meta;
       } catch (err) {
-        this.error = _errMsg(err);
-        throw err;
+        toastError("Error", _errMsg(err));
       } finally {
         this.loading.halls = false;
       }
     },
 
     async createHall(payload) {
-      await academicService.createHall(payload);
-      await this.fetchHalls({
-        page: this.meta.halls.page,
-        limit: this.meta.halls.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.createHall(payload);
+        toastSuccess("Success", "Hall created");
+        await this.fetchHalls();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async updateHall(id, payload) {
-      await academicService.updateHall(id, payload);
-      await this.fetchHalls({
-        page: this.meta.halls.page,
-        limit: this.meta.halls.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.updateHall(id, payload);
+        toastSuccess("Success", "Hall updated");
+        await this.fetchHalls();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async deleteHall(id) {
-      await academicService.deleteHall(id);
-      await this.fetchHalls({
-        page: this.meta.halls.page,
-        limit: this.meta.halls.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.deleteHall(id);
+        toastSuccess("Deleted", "Hall removed");
+        await this.fetchHalls();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     // ───────── TIMETABLE ─────────
+    // Schema: { unit_id, cohort_id, hall_id, lecturer_id, day_of_week, start_time, end_time }
     async fetchTimetable(params = {}) {
+      const { toastError } = useAlert();
       this.loading.timetable = true;
-      this.error = null;
       try {
         const { data } = await academicService.getTimetable(params);
         const { items, meta } = unwrapList(data);
-
         this.timetable = items;
         this.meta.timetable = meta;
       } catch (err) {
-        this.error = _errMsg(err);
-        throw err;
+        toastError("Error", _errMsg(err));
       } finally {
         this.loading.timetable = false;
       }
     },
 
     async createTimetableEntry(payload) {
-      await academicService.createTimetable(payload);
-      await this.fetchTimetable({
-        page: this.meta.timetable.page,
-        limit: this.meta.timetable.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.createTimetable(payload);
+        toastSuccess("Success", "Entry added to timetable");
+        await this.fetchTimetable();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async updateTimetableEntry(id, payload) {
-      await academicService.updateTimetable(id, payload);
-      await this.fetchTimetable({
-        page: this.meta.timetable.page,
-        limit: this.meta.timetable.limit,
-      });
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.updateTimetable(id, payload);
+        toastSuccess("Success", "Timetable updated");
+        await this.fetchTimetable();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     async deleteTimetableEntry(id) {
-      await academicService.deleteTimetable(id);
-      await this.fetchTimetable({
-        page: this.meta.timetable.page,
-        limit: this.meta.timetable.limit,
-      });
-    },
-
-    // ───────── SESSIONS ─────────
-    async startSession(payload) {
-      const { data } = await academicService.startSession(payload);
-      return data;
-    },
-
-    async endSession(sessionId) {
-      await academicService.endSession(sessionId);
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await academicService.deleteTimetable(id);
+        toastSuccess("Deleted", "Entry removed");
+        await this.fetchTimetable();
+      } catch (err) {
+        toastError("Error", _errMsg(err));
+      }
     },
 
     // ───────── PAGINATION ─────────
@@ -279,28 +318,18 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
       const map = {
         programs: () =>
           this.fetchPrograms({ page, limit: this.meta.programs.limit }),
-
         cohorts: () =>
           this.fetchClasses({ page, limit: this.meta.cohorts.limit }),
-
-        units: () =>
-          this.fetchUnits({ page, limit: this.meta.units.limit }),
-
-        halls: () =>
-          this.fetchHalls({ page, limit: this.meta.halls.limit }),
-
+        units: () => this.fetchUnits({ page, limit: this.meta.units.limit }),
+        halls: () => this.fetchHalls({ page, limit: this.meta.halls.limit }),
         timetable: () =>
           this.fetchTimetable({ page, limit: this.meta.timetable.limit }),
       };
-
-      if (map[resource]) {
-        await map[resource]();
-      }
+      if (map[resource]) await map[resource]();
     },
   },
 });
 
-// ── ERROR HELPER ────────────────────────────────────────────────────────────
 function _errMsg(err) {
   return (
     err?.response?.data?.detail ??

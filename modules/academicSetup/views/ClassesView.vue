@@ -1,114 +1,114 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useAcademicSetupStore } from "@/stores/academicStore.js";
 import { useAuthStore } from "@/stores/authStore";
+import DataTable from "@/components/DataTable/DataTable.vue";
+import { useAlert } from "@/composables/alerts";
 
-const store     = useAcademicSetupStore();
+const { confirmAction } = useAlert();
+const store = useAcademicSetupStore();
 const authStore = useAuthStore();
+
 const showModal = ref(false);
-const editing   = ref(null);
-const saving    = ref(false);
-const search    = ref("");
-const form      = ref({ name: "", program_id: "", year: new Date().getFullYear() });
+const editing = ref(null);
+const saving = ref(false);
+const viewMode = ref(false);
 
-onMounted(() => Promise.all([store.fetchClasses(), store.fetchPrograms()]));
+// Form State aligned with Backend: name, program_id, year_of_study
+const form = ref({ name: "", program_id: null, year_of_study: 1 });
 
-const filtered = computed(() => {
-  if (!search.value) return store.classes;
-  const q = search.value.toLowerCase();
-  return store.classes.filter((c) => c.name.toLowerCase().includes(q));
+const columns = [
+  { field: "name", header: "Class Name" },
+  { field: "program_name", header: "Programme" }, 
+  { field: "year_of_study", header: "Year", width: "100px" },
+];
+
+const tableActions = computed(() => {
+  const actions = ['view'];
+  if (authStore.userCan('classes:write')) actions.push('edit');
+  if (authStore.userCan('classes:delete')) actions.push('delete');
+  return actions;
 });
 
-function progName(id) { return store.programs.find((p) => p.id === id)?.name || "—"; }
+onMounted(() => {
+  store.fetchClasses();
+  store.fetchPrograms();
+});
 
 function openCreate() {
-  editing.value   = null;
-  form.value      = { name: "", program_id: "", year: new Date().getFullYear() };
+  editing.value = null; viewMode.value = false;
+  form.value = { name: "", program_id: null, year_of_study: 1 };
   showModal.value = true;
 }
+
 function openEdit(c) {
-  editing.value   = c;
-  form.value      = { name: c.name, program_id: c.program_id, year: c.year };
+  editing.value = c; viewMode.value = false;
+  form.value = { name: c.name, program_id: c.program_id, year_of_study: c.year_of_study };
   showModal.value = true;
 }
+
+function openView(c) {
+  editing.value = c; viewMode.value = true;
+  form.value = { name: c.name, program_id: c.program_id, year_of_study: c.year_of_study };
+  showModal.value = true;
+}
+
 async function save() {
+  if (viewMode.value) { showModal.value = false; return; }
   saving.value = true;
   try {
     if (editing.value) await store.updateClass(editing.value.id, form.value);
-    else               await store.createClass(form.value);
+    else await store.createClass(form.value);
     showModal.value = false;
   } finally { saving.value = false; }
+}
+
+async function handleDelete(c) {
+  const result = await confirmAction("Delete Class", `Delete "${c.name}"?`);
+  if (result.isConfirmed) await store.deleteClass(c.id);
 }
 </script>
 
 <template>
-  <BasePageHeading title="Classes" subtitle="Student groups per programme year">
-    <template #extra>
-      <div class="d-flex gap-2">
-        <input v-model="search" type="search" class="form-control form-control-sm" placeholder="Search…" style="width:180px;"/>
-        <button v-if="authStore.userCan('classes:write')"
-          class="btn btn-primary btn-sm" @click="openCreate">
-          <i class="fa fa-plus me-1"></i> New Class
-        </button>
-      </div>
-    </template>
-  </BasePageHeading>
-
+  <BasePageHeading title="Classes" subtitle="Manage student cohorts and study years" />
   <div class="content">
-    <div v-if="store.loading" class="text-center py-5"><div class="spinner-border" style="color:#E65F0E;"></div></div>
-
-    <BaseBlock v-else content-full>
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="bg-body-light">
-            <tr>
-              <th>Class Name</th>
-              <th>Programme</th>
-              <th>Year</th>
-              <th v-if="authStore.userCan('classes:write')" class="text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in filtered" :key="c.id">
-              <td class="fw-semibold">{{ c.name }}</td>
-              <td class="text-muted">{{ progName(c.program_id) }}</td>
-              <td>{{ c.year }}</td>
-              <td v-if="authStore.userCan('classes:write')" class="text-end">
-                <button class="btn btn-sm btn-alt-secondary" @click="openEdit(c)">
-                  <i class="si si-pencil"></i>
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!filtered.length">
-              <td colspan="4" class="text-center text-muted py-4">No classes found.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </BaseBlock>
+    <DataTable
+      title="Academic Classes"
+      :columns="columns"
+      :data="store.classes"
+      :loading="store.loading.cohorts"
+      :total-count="store.meta.cohorts.total"
+      :current-page="store.meta.cohorts.page"
+      :total-pages="Math.ceil(store.meta.cohorts.total / store.meta.cohorts.limit)"
+      :actions="tableActions"
+      @create="openCreate" @view="openView" @edit="openEdit" @delete="handleDelete"
+      @change-page="(p) => store.changePage('cohorts', p)"
+    />
   </div>
 
-  <BaseModal :show-modal="showModal" :title="editing ? 'Edit Class' : 'New Class'" @close="showModal=false">
-    <div class="mb-3">
-      <label class="form-label fw-medium">Class Name *</label>
-      <input v-model="form.name" type="text" class="form-control" placeholder="e.g. BSCS 2025"/>
-    </div>
-    <div class="mb-3">
-      <label class="form-label fw-medium">Programme *</label>
-      <select v-model="form.program_id" class="form-select">
-        <option value="">— Select —</option>
-        <option v-for="p in store.programs" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
-    </div>
-    <div>
-      <label class="form-label fw-medium">Year</label>
-      <input v-model.number="form.year" type="number" class="form-control"/>
+  <BaseModal :show-modal="showModal" :title="viewMode ? 'Class Details' : editing ? 'Edit Class' : 'New Class'" @close="showModal = false">
+    <div class="row g-3">
+      <div class="col-12">
+        <label class="form-label">Class Name *</label>
+        <input v-model="form.name" type="text" class="form-control" :readonly="viewMode" required />
+      </div>
+      <div class="col-md-8">
+        <label class="form-label">Programme *</label>
+        <select v-model="form.program_id" class="form-select" :disabled="viewMode">
+          <option :value="null">-- Select Programme --</option>
+          <option v-for="p in store.programs" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Year of Study *</label>
+        <input v-model.number="form.year_of_study" type="number" class="form-control" :readonly="viewMode" required />
+      </div>
     </div>
     <template #footer>
-      <button class="btn btn-alt-secondary" @click="showModal=false">Cancel</button>
-      <button class="btn btn-primary" @click="save" :disabled="saving">
+      <button class="btn btn-alt-secondary" @click="showModal = false">{{ viewMode ? 'Close' : 'Cancel' }}</button>
+      <button v-if="!viewMode" class="btn btn-primary" @click="save" :disabled="saving || !form.name || !form.program_id">
         <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
-        {{ editing ? "Save" : "Create" }}
+        {{ editing ? "Save Changes" : "Create Class" }}
       </button>
     </template>
   </BaseModal>

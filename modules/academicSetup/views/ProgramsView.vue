@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useAcademicSetupStore } from "@/stores/academicStore.js";
 import { useAuthStore } from "@/stores/authStore";
 import DataTable from "@/components/DataTable/DataTable.vue";
+import { useAlert } from "@/composables/alerts";
 
+const { confirmAction } = useAlert();
 const store = useAcademicSetupStore();
 const authStore = useAuthStore();
 
@@ -26,8 +28,20 @@ const columns = [
 onMounted(() => store.fetchPrograms());
 
 /**
- * Triggered by the "New Program" button
+ * Logic to show buttons based on permissions
  */
+const tableActions = computed(() => {
+  const actions = ['view'];
+  // Ensure we check permissions string accurately
+  if (authStore.userCan('programs:write')) {
+    actions.push('edit');
+  }
+  if (authStore.userCan('programs:delete')) {
+    actions.push('delete');
+  }
+  return actions;
+});
+
 function openCreate() {
   editing.value = null;
   viewMode.value = false;
@@ -35,9 +49,6 @@ function openCreate() {
   showModal.value = true;
 }
 
-/**
- * Triggered by DataTable @edit
- */
 function openEdit(p) {
   editing.value = p;
   viewMode.value = false;
@@ -45,9 +56,6 @@ function openEdit(p) {
   showModal.value = true;
 }
 
-/**
- * Triggered by DataTable @view
- */
 function openView(p) {
   editing.value = p;
   viewMode.value = true;
@@ -55,9 +63,6 @@ function openView(p) {
   showModal.value = true;
 }
 
-/**
- * Handles Create and Update logic
- */
 async function save() {
   if (viewMode.value) {
     showModal.value = false;
@@ -71,6 +76,7 @@ async function save() {
     } else {
       await store.createProgram(form.value);
     }
+
     showModal.value = false;
   } catch (error) {
     console.error("Save error:", error);
@@ -78,16 +84,15 @@ async function save() {
     saving.value = false;
   }
 }
-
-/**
- * Triggered by DataTable @delete
- */
 async function deactivate(p) {
-  // Confirm deletion
-  if (!confirm(`Are you sure you want to deactivate "${p.name}"?`)) return;
+  const result = await confirmAction(
+    "Delete Program",
+    `Are you sure you want to Delete "${p.name}"?`
+  );
+
+  if (!result.isConfirmed) return;
 
   try {
-    // Calls the delete action in your academicStore.js
     await store.deleteProgram(p.id);
   } catch (error) {
     console.error("Deletion error:", error);
@@ -96,10 +101,7 @@ async function deactivate(p) {
 </script>
 
 <template>
-  <BasePageHeading
-    title="Programs"
-    subtitle="Degree and diploma programmes offered"
-  >
+  <BasePageHeading title="Programs" subtitle="Degree and diploma programmes offered">
     <template #extra>
       <button
         v-if="authStore.userCan('programs:write')"
@@ -119,14 +121,9 @@ async function deactivate(p) {
       :loading="store.loading.programs"
       :total-count="store.meta.programs.total"
       :current-page="store.meta.programs.page"
-      :total-pages="
-        Math.ceil(store.meta.programs.total / store.meta.programs.limit)
-      "
-      :actions="
-        authStore.userCan('programs:write')
-          ? ['view', 'edit', 'delete']
-          : ['view']
-      "
+      :total-pages="Math.ceil(store.meta.programs.total / store.meta.programs.limit)"
+      :actions="tableActions"
+      @create="openCreate" 
       @view="openView"
       @edit="openEdit"
       @delete="deactivate"
@@ -136,40 +133,21 @@ async function deactivate(p) {
 
   <BaseModal
     :show-modal="showModal"
-    :title="
-      viewMode ? 'Program Details' : editing ? 'Edit Program' : 'New Program'
-    "
+    :title="viewMode ? 'Program Details' : editing ? 'Edit Program' : 'New Program'"
     @close="showModal = false"
   >
     <div class="row g-3">
       <div class="col-12">
-        <label class="form-label fw-medium">Code </label>
-        <input
-          v-model="form.code"
-          type="text"
-          class="form-control"
-          :readonly="viewMode"
-          required
-        />
+        <label class="form-label fw-medium">Code *</label>
+        <input v-model="form.code" type="text" class="form-control" :readonly="viewMode" required />
       </div>
       <div class="col-12">
-        <label class="form-label fw-medium">Name </label>
-        <input
-          v-model="form.name"
-          type="text"
-          class="form-control"
-          :readonly="viewMode"
-          required
-        />
+        <label class="form-label fw-medium">Name *</label>
+        <input v-model="form.name" type="text" class="form-control" :readonly="viewMode" required />
       </div>
       <div class="col-12">
         <label class="form-label fw-medium">Description</label>
-        <textarea
-          v-model="form.description"
-          class="form-control"
-          rows="3"
-          :readonly="viewMode"
-        ></textarea>
+        <textarea v-model="form.description" class="form-control" rows="3" :readonly="viewMode"></textarea>
       </div>
     </div>
 
@@ -183,10 +161,7 @@ async function deactivate(p) {
         @click="save"
         :disabled="saving || !form.code || !form.name"
       >
-        <span
-          v-if="saving"
-          class="spinner-border spinner-border-sm me-1"
-        ></span>
+        <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
         {{ editing ? "Save Changes" : "Create Program" }}
       </button>
     </template>
