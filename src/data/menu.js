@@ -11,64 +11,117 @@ export default {
       to: "dashboard",
       icon: "si si-speedometer",
     },
+
+    // ── ACADEMIC MANAGEMENT ──
     {
-      name: "Programs",
-      to: "programs",
-      icon: "si si-speedometer",
+      name: "Academic Setup",
+      heading: true,
     },
     {
-      name: "Classes",
-      to: "classes",
-      icon: "si si-speedometer",
+      name: "Programs & Classes",
+      icon: "fa fa-graduation-cap",
+      subActivePaths: ["/programs", "/classes", "/units"],
+      sub: [
+        {
+          name: "Programs",
+          to: "programs",
+          icon: "fa fa-award",
+        },
+        {
+          name: "Classes",
+          to: "classes",
+          icon: "fa fa-layer-group",
+        },
+        {
+          name: "Units",
+          to: "units",
+          icon: "fa fa-book",
+        },
+      ],
     },
     {
-      name: "Units",
-      to: "units",
-      icon: "si si-speedometer",
+      name: "Infrastructure",
+      icon: "fa fa-building-columns",
+      subActivePaths: ["/halls", "/timetable"],
+      sub: [
+        {
+          name: "Lecture Halls",
+          to: "halls",
+          icon: "fa fa-door-open",
+        },
+        {
+          name: "Timetable",
+          to: "timetable",
+          icon: "fa fa-calendar-days",
+        },
+      ],
+    },
+
+    // ── IDENTITY & ACCESS ──
+    {
+      name: "IAM",
+      heading: true,
     },
     {
-      name: "Lecturers",
-      to: "users",
-      icon: "si si-speedometer",
+      name: "User Management",
+      icon: "fa fa-user-shield",
+      subActivePaths: ["/users", "/students", "/lecturers"],
+      sub: [
+        {
+          name: "All Users",
+          to: "users",
+          icon: "fa fa-users-gear",
+        },
+        {
+          name: "Lecturers",
+          to: "lecturers",
+          icon: "fa fa-chalkboard-user",
+        },
+        {
+          name: "Students",
+          to: "students",
+          icon: "fa fa-user-graduate",
+        },
+      ],
+    },
+
+    // ── MONITORING ──
+    {
+      name: "Monitoring",
+      heading: true,
     },
     {
-      name: "Students",
-      to: "students",
-      icon: "si si-speedometer",
-    },
-    {
-      name: "Lecture Halls",
-      to: "halls",
-      icon: "si si-speedometer",
-    },
-    {
-      name: "Timetable",
-      to: "timetable",
-      icon: "si si-calendar",
-    },
-    {
-      name: "Attendance Logs",
-      to: "attendance-logs",
-      icon: "si si-speedometer",
-    },
-    {
-      name: "Exam Logs",
-      to: "exam-auth-logs",
-      icon: "si si-speedometer",
+      name: "Logs Management",
+      icon: "fa fa-clipboard-list",
+      subActivePaths: ["/attendance-logs", "/exam-auth-logs"],
+      sub: [
+        {
+          name: "Attendance Logs",
+          to: "attendance-logs",
+          icon: "fa fa-fingerprint",
+        },
+        {
+          name: "Exam Logs",
+          to: "exam-auth-logs",
+          icon: "fa fa-shield-check",
+        },
+      ],
     },
   ],
+
   lecturer: [
     { name: "Dashboard", to: "dashboard", icon: "si si-speedometer" },
     { name: "My Schedule", to: "lecturer-schedule", icon: "si si-calendar" },
-    { name: "Units", to: "units", icon: "si si-lock" },
+    { name: "Units", to: "units", icon: "fa fa-book" },
     {
       name: "Attendance Scanner",
       to: "lecturer-scanner",
       icon: "si si-camera",
     },
-    { name: "Exam Auth", to: "lecturer-exam", icon: "si si-lock" },
-    { name: "Reports", to: "reports", icon: "si si-lock" },
+    { name: "Exam Auth", to: "lecturer-exam", icon: "fa fa-user-check" },
+    { name: "Reports", to: "reports", icon: "fa fa-chart-line" },
   ],
+
   student: [
     { name: "Dashboard", to: "dashboard", icon: "si si-speedometer" },
     {
@@ -80,8 +133,8 @@ export default {
     {
       name: "Attendance History",
       to: "my-attendance",
-      icon: "si si-check",
+      icon: "fa fa-clock-rotate-left",
     },
-    { name: "Exam History", to: "exam-history", icon: "si si-check" },
+    { name: "Exam History", to: "exam-history", icon: "fa fa-file-invoice" },
   ],
 };

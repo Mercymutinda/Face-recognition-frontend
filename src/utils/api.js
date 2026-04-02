@@ -1,14 +1,14 @@
 // src/utils/api.js
-import axios from 'axios';
-import { useAuthStore } from '@/stores/authStore';
+import axios from "axios";
+import { useAuthStore } from "@/stores/authStore";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  },
 });
 
 //  REQUEST INTERCEPTOR (Attach token)
@@ -27,36 +27,27 @@ api.interceptors.request.use((config) => {
 // RESPONSE INTERCEPTOR (Handle 401 + Refresh)
 api.interceptors.response.use(
   (response) => response,
-
   async (error) => {
-    const authStore = useAuthStore();
-
     const originalRequest = error.config;
 
-    //  Prevent infinite loop
+    // If 401 and we haven't tried to refresh yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+      const authStore = useAuthStore(); // Call inside the function!
 
       try {
-        //  Try refresh
-        const newToken = await authStore.refreshToken();
-
-        // Attach new token
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-        // Retry original request
+        // Make sure refreshToken exists in authStore.js!
+        await authStore.refreshToken();
+        originalRequest.headers["Authorization"] =
+          `Bearer ${authStore.accessToken}`;
         return api(originalRequest);
-
       } catch (refreshError) {
-        console.error('Refresh failed, logging out');
-
-        authStore.logout(); //  FIXED
+        console.error("Refresh failed, logging out", refreshError);
+        authStore.logout();
         return Promise.reject(refreshError);
       }
     }
-
     return Promise.reject(error);
   }
 );
-
 export default api;
