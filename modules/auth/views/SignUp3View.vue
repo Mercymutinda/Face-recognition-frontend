@@ -1,138 +1,253 @@
 <script setup>
-import { ref, reactive } from "vue";
-import { useRouter } from "vue-router";
-import { useAuthStore } from "@/stores/auth";
+import { ref, reactive, computed } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "@/stores/authStore";
 
 const router    = useRouter();
+const route     = useRoute();
 const authStore = useAuthStore();
 
-const form = reactive({
-  username: "", email: "", registration_number: "",
-  phone_number: "", password: "", confirmPassword: "",
-  full_name: "", program: "BSCS", year_of_study: 1,
-});
-const error   = ref("");
-const success = ref("");
-const loading = ref(false);
+const signupRole = computed(() => route.query.role || "student");
+const isLecturer = computed(() => signupRole.value === "lecturer");
 
+const form = reactive({
+  username: "",
+  email: "",
+  registration_number: "",
+  phone_number: "",
+  password: "",
+  confirmPassword: "",
+  full_name: "",
+  program: "BSCS",
+  year_of_study: 1,
+});
+
+const error   = ref("");
+
+const loading = ref(false);
+const step    = ref(1);
+
+function nextStep() {
+  error.value = "";
+  if (!form.full_name || !form.username || !form.registration_number || !form.phone_number || !form.email) {
+    error.value = "Please fill in all required fields before continuing.";
+    return;
+  }
+  step.value = 2;
+}
 async function onSubmit() {
   if (form.password !== form.confirmPassword) {
-    error.value = "Passwords do not match."; return;
+    error.value = "Passwords do not match.";
+    return;
   }
-  error.value = ""; loading.value = true;
-  const { confirmPassword, ...payload } = form;
-  const ok = await authStore.signup(payload);
-  loading.value = false;
-  if (ok) {
-    success.value = "Account created! Redirecting to login…";
-    setTimeout(() => router.push({ name: "auth-signin3" }), 2000);
-  } else {
-    error.value = authStore.error || "Registration failed.";
+
+  error.value = "";
+  loading.value = true;
+
+  try {
+    const { confirmPassword, ...payload } = form;
+    payload.assigned_role = isLecturer.value ? "LECTURER" : "STUDENT";
+
+    // The store should return true on success, or throw on error
+    const ok = await authStore.signup(payload);
+
+    if (ok) {
+      router.push({ name: "auth-signin3" });
+    }
+  } catch (err) {
+    // This will now capture the 500 error or the "Invalid Role" message
+    error.value = err.response?.data?.detail || "A server error occurred. Please ensure roles are seeded.";
+    console.error("Signup error:", err);
+  } finally {
+    loading.value = false;
   }
 }
+// Password strength calculation
+const pwStrength = computed(() => {
+  const p = form.password;
+  if (!p) return 0;
+  let score = 0;
+  if (p.length >= 8) score++;
+  if (/[A-Z]/.test(p)) score++;
+  if (/[0-9]/.test(p)) score++;
+  if (/[^A-Za-z0-9]/.test(p)) score++;
+  return score;
+});
+
+const pwColorClass = computed(() => {
+  const classes = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-info', 'bg-success'];
+  return classes[pwStrength.value];
+});
 </script>
 
 <template>
-  <div class="academi-auth-bg">
-    <div class="row g-0" style="min-height:100vh;">
-      <!-- Left panel -->
-      <div class="d-none d-lg-flex col-lg-4 flex-column justify-content-center"
-        style="background:linear-gradient(180deg,rgba(51,27,17,0.98) 0%,rgba(45,62,22,0.98) 100%);
-               border-right:1px solid rgba(245,237,224,0.1);padding:40px;">
-        <div class="d-flex align-items-center gap-3 mb-5">
-          <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#E65F0E,#c44a00);
-                      display:flex;align-items:center;justify-content:center;font-size:20px;">🔍</div>
-          <div style="font-family:'Playfair Display',serif;font-size:21px;font-weight:700;color:#f5ede0;">
-            Academi<span style="color:#E65F0E;">Scan</span>
+  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-dark p-0">
+    <div class="row g-0 shadow-lg overflow-hidden rounded-4 m-3 w-100" style="max-width: 1100px; min-height: 650px;">
+      
+      <div class="col-lg-4 d-none d-lg-flex flex-column justify-content-between p-5 text-white" 
+           :class="isLecturer ? 'bg-primary' : 'bg-success'"
+           style="background-image: linear-gradient(160deg, rgba(0,0,0,0.3) 0%, transparent 100%);">
+        
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-4">
+            <i class="fa fa-fingerprint fs-3"></i>
+            <span class="fs-4 fw-bold">AcademiScan</span>
+          </div>
+
+          <span class="badge bg-white bg-opacity-25 text-white mb-3 text-uppercase small tracking-wider px-3 py-2">
+            {{ isLecturer ? 'Lecturer Account' : 'Student Account' }}
+          </span>
+          
+          <h2 class="display-6 fw-bold mb-4">
+            {{ isLecturer ? 'Join the Faculty' : 'Begin Your Journey' }}
+          </h2>
+          <p class="opacity-75 mb-5">
+            {{ isLecturer 
+              ? 'Manage attendance sessions and generate examination reports securely.' 
+              : 'Register to track attendance and authenticate for exams using face recognition.' 
+            }}
+          </p>
+
+          <div class="d-flex flex-column gap-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" 
+                   style="width: 32px; height: 32px;"
+                   :class="step >= 1 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
+                <i v-if="step > 1" class="fa fa-check small"></i>
+                <span v-else>1</span>
+              </div>
+              <span class="fw-bold" :class="step === 1 ? 'opacity-100' : 'opacity-50'">Personal Profile</span>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" 
+                   style="width: 32px; height: 32px;"
+                   :class="step === 2 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
+                <span>2</span>
+              </div>
+              <span class="fw-bold" :class="step === 2 ? 'opacity-100' : 'opacity-50'">Account Security</span>
+            </div>
           </div>
         </div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:24px;color:#f5ede0;margin-bottom:12px;">
-          Student Registration
-        </h2>
-        <p style="color:#b89a7a;font-size:13px;line-height:1.7;">
-          Create your academic account to access timetables,
-          attendance records and exam authentication.
-        </p>
-        <div style="margin-top:30px;border-top:1px solid rgba(245,237,224,0.1);padding-top:20px;">
-          <p style="color:#7a5c42;font-size:12px;">
-            Already have an account?
-            <RouterLink :to="{ name: 'auth-signin3' }" style="color:#E65F0E;font-weight:600;">
-              Sign In →
-            </RouterLink>
-          </p>
+
+        <div class="border-top border-white border-opacity-10 pt-4 mt-auto">
+          <RouterLink :to="{ name: 'auth-signin3' }" class="text-white text-decoration-none small fw-bold">
+            Already registered? Sign In <i class="fa fa-arrow-right ms-1"></i>
+          </RouterLink>
         </div>
       </div>
 
-      <!-- Right panel: form -->
-      <div class="col-lg-8 d-flex align-items-center justify-content-center"
-        style="background:rgba(51,27,17,0.5);backdrop-filter:blur(10px);padding:40px 20px;">
-        <div style="width:100%;max-width:560px;">
-          <h1 style="font-family:'Playfair Display',serif;font-size:24px;font-weight:800;color:#f5ede0;margin-bottom:22px;">
-            Create Account
-          </h1>
+      <div class="col-lg-8 bg-white d-flex flex-column p-4 p-md-5">
+        <div class="w-100 mx-auto" style="max-width: 600px;">
+          
+          <div v-if="error" class="alert alert-danger py-2 mb-4 small rounded-3 border-0 shadow-sm">
+            <i class="fa fa-exclamation-triangle me-2"></i> {{ error }}
+          </div>
+          <!-- <div v-if="success" class="alert alert-success py-2 mb-4 small rounded-3 border-0 shadow-sm">
+            <i class="fa fa-check-circle me-2"></i> {{ success }}
+          </div> -->
 
-          <div v-if="error"   class="alert alert-danger  py-2 mb-3" style="font-size:13px;">{{ error }}</div>
-          <div v-if="success" class="alert alert-success py-2 mb-3" style="font-size:13px;">{{ success }}</div>
+          <div v-if="step === 1">
+            <div class="mb-4">
+              <h3 class="fw-bold text-dark">Personal Information</h3>
+              <p class="text-muted small">Required for academic record verification.</p>
+            </div>
 
-          <form @submit.prevent="onSubmit">
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="academi-label">FULL NAME</label>
-                <input v-model="form.full_name" type="text" class="academi-input" placeholder="Mercy Mbeke Mutinda"/>
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Full Name</label>
+                <input v-model="form.full_name" type="text" class="form-control bg-light border-0 py-2" placeholder="Jane Doe">
               </div>
               <div class="col-md-6">
-                <label class="academi-label">USERNAME</label>
-                <input v-model="form.username" type="text" class="academi-input" placeholder="mercy_mutinda" required/>
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Username</label>
+                <input v-model="form.username" type="text" class="form-control bg-light border-0 py-2" placeholder="janedoe">
               </div>
               <div class="col-md-6">
-                <label class="academi-label">REGISTRATION NUMBER</label>
-                <input v-model="form.registration_number" type="text" class="academi-input"
-                  placeholder="BSCS/183J/2022" required/>
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">
+                  {{ isLecturer ? 'Staff ID' : 'Reg. Number' }}
+                </label>
+                <input v-model="form.registration_number" type="text" class="form-control bg-light border-0 py-2" placeholder="STF/100 or BSCS/101">
               </div>
               <div class="col-md-6">
-                <label class="academi-label">PHONE NUMBER</label>
-                <input v-model="form.phone_number" type="tel" class="academi-input"
-                  placeholder="+254712345678" required/>
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Phone</label>
+                <input v-model="form.phone_number" type="tel" class="form-control bg-light border-0 py-2" placeholder="+254...">
               </div>
-              <div class="col-md-8">
-                <label class="academi-label">EMAIL ADDRESS</label>
-                <input v-model="form.email" type="email" class="academi-input"
-                  placeholder="student@tum.ac.ke" required/>
+              <div class="col-12">
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Email Address</label>
+                <input v-model="form.email" type="email" class="form-control bg-light border-0 py-2" placeholder="name@tum.ac.ke">
               </div>
-              <div class="col-md-4">
-                <label class="academi-label">PROGRAM</label>
-                <select v-model="form.program" class="academi-input">
-                  <option>BSCS</option><option>BBIT</option><option>BIT</option>
-                </select>
-              </div>
-              <div class="col-md-4">
-                <label class="academi-label">YEAR OF STUDY</label>
-                <select v-model="form.year_of_study" class="academi-input">
-                  <option :value="1">Year 1</option><option :value="2">Year 2</option>
-                  <option :value="3">Year 3</option><option :value="4">Year 4</option>
-                </select>
-              </div>
-              <div class="col-md-4">
-                <label class="academi-label">PASSWORD</label>
-                <input v-model="form.password" type="password" class="academi-input"
-                  placeholder="Min. 8 chars" required/>
-              </div>
-              <div class="col-md-4">
-                <label class="academi-label">CONFIRM PASSWORD</label>
-                <input v-model="form.confirmPassword" type="password" class="academi-input"
-                  placeholder="Repeat password" required/>
+
+              <template v-if="!isLecturer">
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Program</label>
+                  <select v-model="form.program" class="form-select bg-light border-0 py-2">
+                    <option value="BSCS">BSc. Computer Science</option>
+                    <option value="BBIT">BSc. Business IT</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Year</label>
+                  <div class="btn-group w-100">
+                    <button v-for="y in 4" :key="y" type="button" 
+                            class="btn btn-sm btn-outline-secondary" 
+                            :class="{ 'active': form.year_of_study === y }"
+                            @click="form.year_of_study = y">Y{{ y }}</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-5">
+              <RouterLink :to="{ name: 'auth-signin3' }" class="text-muted text-decoration-none small">Back to Login</RouterLink>
+              <button @click="nextStep" class="btn btn-primary px-4 py-2 fw-bold">
+                Continue <i class="fa fa-arrow-right ms-2"></i>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="step === 2">
+            <div class="mb-4">
+              <h3 class="fw-bold text-dark">Account Security</h3>
+              <p class="text-muted small">Choose a password to secure your academic records.</p>
+            </div>
+
+            <div class="card bg-light border-0 rounded-3 mb-4 p-3 shadow-sm">
+              <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                  {{ form.full_name?.charAt(0) }}
+                </div>
+                <div>
+                  <div class="fw-bold text-dark">{{ form.full_name }}</div>
+                  <div class="text-muted extra-small">{{ form.email }}</div>
+                </div>
+                <button @click="step = 1" class="btn btn-sm btn-link ms-auto text-decoration-none p-0">Edit Details</button>
               </div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-4">
-              <RouterLink :to="{ name: 'auth-signin3' }"
-                style="font-size:12.5px;color:#b89a7a;">← Back to Sign In</RouterLink>
-              <button type="submit" class="academi-btn-orange" :disabled="loading">
-                <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                Create Account →
-              </button>
-            </div>
-          </form>
+            <form @submit.prevent="onSubmit">
+              <div class="mb-3">
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Password</label>
+                <input v-model="form.password" type="password" class="form-control bg-light border-0 py-2 mb-2" placeholder="Min. 8 characters">
+                
+                <div v-if="form.password" class="progress" style="height: 4px;">
+                  <div class="progress-bar" :class="pwColorClass" :style="{ width: (pwStrength * 25) + '%' }"></div>
+                </div>
+              </div>
+
+              <div class="mb-5">
+                <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Confirm Password</label>
+                <input v-model="form.confirmPassword" type="password" class="form-control bg-light border-0 py-2" placeholder="Repeat password">
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center">
+                <button type="button" @click="step = 1" class="btn btn-link text-muted text-decoration-none px-0">Go Back</button>
+                <button type="submit" class="btn btn-primary px-5 py-2 fw-bold d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                  Create Account <i class="fa fa-check"></i>
+                </button>
+              </div>
+            </form>
+          </div>
+
         </div>
       </div>
     </div>
@@ -140,13 +255,18 @@ async function onSubmit() {
 </template>
 
 <style scoped>
-.academi-auth-bg { min-height:100vh; background:#331B11; }
-.academi-label   { display:block;font-size:11px;font-weight:600;color:#b89a7a;letter-spacing:.1em;font-family:'DM Mono',monospace;margin-bottom:5px; }
-.academi-input   { width:100%;background:rgba(245,237,224,.06);border:1px solid rgba(245,237,224,.12);border-radius:9px;padding:10px 13px;color:#f0e6d3;font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none;transition:border-color .15s; }
-.academi-input:focus { border-color:rgba(230,95,14,.5); }
-.academi-input::placeholder { color:#7a5c42; }
-select.academi-input option { background:#331B11; }
-.academi-btn-orange { background:linear-gradient(135deg,#E65F0E,#c44a00);border:none;color:#fff;border-radius:9px;padding:10px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;box-shadow:0 4px 18px rgba(230,95,14,.3);transition:all .15s; }
-.academi-btn-orange:hover { transform:translateY(-1px);box-shadow:0 6px 24px rgba(230,95,14,.45); }
-.academi-btn-orange:disabled { opacity:.7;transform:none; }
+.rounded-4 { border-radius: 1.5rem !important; }
+.tracking-wider { letter-spacing: 0.1em; }
+.extra-small { font-size: 0.75rem; }
+
+.form-control:focus, .form-select:focus {
+  background-color: #f8f9fa;
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  border: none;
+}
 </style>

@@ -3,66 +3,37 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
-const router = useRouter();
+const router    = useRouter();
 const authStore = useAuthStore();
 
 const username = ref("");
 const password = ref("");
-const errors = ref({});
-const loading = ref(false);
+const errors   = ref({});
+const loading  = ref(false);
 const showPass = ref(false);
 
-// 🔥 Auto clear field errors when typing
 watch(username, () => delete errors.value.username);
 watch(password, () => delete errors.value.password);
 
 async function onSubmit() {
   errors.value = {};
-
-  // ✅ FRONTEND VALIDATION
-  if (!username.value) {
-    errors.value.username = "Username is required";
-  }
-
-  if (!password.value) {
-    errors.value.password = "Password is required";
-  }
-
+  if (!username.value) errors.value.username = "Username is required";
+  if (!password.value) errors.value.password = "Password is required";
   if (Object.keys(errors.value).length) return;
 
   loading.value = true;
-
   try {
-    await authStore.login({
-      username: username.value,
-      password: password.value,
-    });
-
+    await authStore.login({ username: username.value, password: password.value });
     router.push({ name: "dashboard" });
-
   } catch (e) {
     const res = e?.response?.data;
-
-    // ✅ FASTAPI VALIDATION ERRORS (422)
     if (Array.isArray(res)) {
       const fieldErrors = {};
-
-      res.forEach((err) => {
-        const field = err.loc?.[1];
-        if (field) {
-          fieldErrors[field] = err.msg;
-        }
-      });
-
+      res.forEach((err) => { if (err.loc?.[1]) fieldErrors[err.loc[1]] = err.msg; });
       errors.value = fieldErrors;
-    } 
-    
-    // ✅ NORMAL ERROR (401, etc)
-    else {
-      errors.value.general =
-        res?.detail || "Invalid credentials. Please try again.";
+    } else {
+      errors.value.general = res?.detail || "Invalid credentials. Please try again.";
     }
-
   } finally {
     loading.value = false;
   }
@@ -70,93 +41,152 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div style="min-height:100vh;display:flex;background:#f4f6fb;">
+  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-dark p-0">
     
-    <!-- LEFT PANEL -->
-    <div class="d-none d-lg-flex flex-column justify-content-between p-5"
-      style="width:42%;background:linear-gradient(160deg,#1a2540 0%,#2356d7 100%);position:relative;overflow:hidden;">
-
-      <div style="position:absolute;inset:0;opacity:.04;
-        background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=60 height=60%3E%3Ccircle cx=30 cy=30 r=0.8 fill=%22%23fff%22/%3E%3C/svg%3E');">
-      </div>
-
-      <div style="position:relative;z-index:1;">
-        <h2 style="color:#fff;">AcademiScan</h2>
-        <p style="color:rgba(255,255,255,.6);">
-          Biometric-powered attendance & exam authentication.
-        </p>
-      </div>
-    </div>
-
-    <!-- RIGHT PANEL -->
-    <div class="d-flex align-items-center justify-content-center flex-grow-1 p-4">
-      <div style="width:100%;max-width:420px;">
-
-        <h1 style="font-size:28px;font-weight:900;color:#1a2540;">
-          Sign In
-        </h1>
-
-        <!-- GENERAL ERROR -->
-        <div v-if="errors.general" class="alert alert-danger py-2 mb-3">
-          {{ errors.general }}
+    <div class="row g-0 shadow-lg overflow-hidden rounded-4 m-3 w-100" style="max-width: 1000px; min-height: 600px;">
+      
+      <div class="col-lg-5 d-none d-lg-flex flex-column justify-content-between p-5 text-white position-relative" 
+           style="background: linear-gradient(150deg, #0d1630 0%, #122166 100%);">
+        
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa fa-fingerprint fs-3 text-primary"></i>
+          <span class="fs-4 fw-bold">Academi<span class="text-warning">Scan</span></span>
         </div>
 
-        <form @submit.prevent="onSubmit">
+        <div>
+          <p class="text-uppercase small tracking-widest opacity-50 mb-2">Technical University of Mombasa</p>
+          <h2 class="display-6 fw-bold mb-3">Intelligent Identity System</h2>
+          <p class="opacity-75 lead fs-6 mb-4">Biometric-powered attendance tracking and examination authentication.</p>
           
-          <!-- USERNAME -->
-          <div class="mb-3">
-            <label>USERNAME / REG NUMBER</label>
-            <input
-              v-model="username"
-              type="text"
-              placeholder="admin or BSCS/183J/2022"
-              :class="{ 'is-invalid': errors.username }"
-              style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"
-            />
-            <div v-if="errors.username" class="text-danger mt-1">
-              {{ errors.username }}
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge rounded-pill bg-white bg-opacity-10 border border-white border-opacity-25 px-3 py-2">Face Recognition</span>
+            <span class="badge rounded-pill bg-white bg-opacity-10 border border-white border-opacity-25 px-3 py-2">Exam Auth</span>
+          </div>
+        </div>
+
+        <div class="row border-top border-white border-opacity-10 pt-4">
+          <div class="col-4">
+            <div class="fw-bold fs-5">99.2%</div>
+            <div class="small opacity-50 text-uppercase" style="font-size: 0.7rem;">Accuracy</div>
+          </div>
+          <div class="col-4">
+            <div class="fw-bold fs-5">3s</div>
+            <div class="small opacity-50 text-uppercase" style="font-size: 0.7rem;">Avg Scan</div>
+          </div>
+          <div class="col-4">
+            <div class="fw-bold fs-5">SSL</div>
+            <div class="small opacity-50 text-uppercase" style="font-size: 0.7rem;">Secure</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7 bg-white d-flex align-items-center justify-content-center p-4 p-md-5">
+        <div class="w-100" style="max-width: 400px;">
+          
+          <div class="d-lg-none d-flex align-items-center gap-2 mb-4">
+            <i class="fa fa-fingerprint fs-4 text-primary"></i>
+            <span class="fs-5 fw-bold text-dark">Academi<span class="text-warning">Scan</span></span>
+          </div>
+
+          <div class="mb-4 text-center text-md-start">
+            <h1 class="h2 fw-bold text-dark">Welcome back</h1>
+            <p class="text-muted">Sign in to your account to continue</p>
+          </div>
+
+          <div v-if="errors.general" class="alert alert-danger d-flex align-items-center p-3 mb-4 rounded-3 border-0 shadow-sm" role="alert">
+            <i class="fa fa-exclamation-circle me-2"></i>
+            <small>{{ errors.general }}</small>
+          </div>
+
+          <form @submit.prevent="onSubmit" novalidate>
+            <div class="mb-3">
+              <label class="form-label text-uppercase small fw-bold text-muted" style="letter-spacing: 0.05rem;">Username / Reg Number</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa fa-user"></i></span>
+                <input
+                  v-model="username"
+                  type="text"
+                  class="form-control bg-light border-start-0 ps-0 py-2"
+                  :class="{ 'is-invalid': errors.username }"
+                  placeholder="admin or BSCS/183J/2022"
+                />
+                <div v-if="errors.username" class="invalid-feedback">{{ errors.username }}</div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <div class="d-flex justify-content-between">
+                <label class="form-label text-uppercase small fw-bold text-muted" style="letter-spacing: 0.05rem;">Password</label>
+                <RouterLink :to="{ name: 'reminder' }" class="small text-decoration-none fw-semibold">Forgot?</RouterLink>
+              </div>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa fa-lock"></i></span>
+                <input
+                  v-model="password"
+                  :type="showPass ? 'text' : 'password'"
+                  class="form-control bg-light border-start-0 border-end-0 ps-0 py-2"
+                  :class="{ 'is-invalid': errors.password }"
+                  placeholder="••••••••"
+                />
+                <button type="button" class="input-group-text bg-light border-start-0 text-muted" @click="showPass = !showPass">
+                  <i class="fa" :class="showPass ? 'fa-eye-slash' : 'fa-eye'"></i>
+                </button>
+                <div v-if="errors.password" class="invalid-feedback">{{ errors.password }}</div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm d-flex align-items-center justify-content-center" :disabled="loading">
+              <span v-if="!loading">
+                Sign In <i class="fa fa-arrow-right ms-2"></i>
+              </span>
+              <span v-else class="spinner-border spinner-border-sm" role="status"></span>
+            </button>
+          </form>
+
+          <div class="my-4 d-flex align-items-center text-muted">
+            <hr class="flex-grow-1 m-0">
+            <span class="px-3 small text-uppercase fw-bold">Register Account</span>
+            <hr class="flex-grow-1 m-0">
+          </div>
+
+          <div class="row g-2">
+            <div class="col-sm-6">
+              <RouterLink :to="{ name: 'auth-signup3', query: { role: 'student' } }" class="btn btn-outline-success w-100 py-2 small fw-bold">
+                <i class="fa fa-user-graduate me-1"></i> Student
+              </RouterLink>
+            </div>
+            <div class="col-sm-6">
+              <RouterLink :to="{ name: 'auth-signup3', query: { role: 'lecturer' } }" class="btn btn-outline-primary w-100 py-2 small fw-bold">
+                <i class="fa fa-chalkboard-teacher me-1"></i> Lecturer
+              </RouterLink>
             </div>
           </div>
 
-          <!-- PASSWORD -->
-          <div class="mb-4">
-            <label>PASSWORD</label>
-
-            <div style="position:relative;">
-              <input
-                v-model="password"
-                :type="showPass ? 'text' : 'password'"
-                placeholder="••••••••"
-                :class="{ 'is-invalid': errors.password }"
-                style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;"
-              />
-
-              <button
-                type="button"
-                @click="showPass = !showPass"
-                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);border:none;background:none;"
-              >
-                👁️
-              </button>
-            </div>
-
-            <div v-if="errors.password" class="text-danger mt-1">
-              {{ errors.password }}
-            </div>
-          </div>
-
-          <!-- SUBMIT -->
-          <button
-            type="submit"
-            :disabled="loading"
-            style="width:100%;padding:12px;background:#2356d7;color:#fff;border:none;border-radius:8px;"
-          >
-            <span v-if="loading">Loading...</span>
-            <span v-else>Sign In →</span>
-          </button>
-        </form>
-
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Only necessary styles that Bootstrap doesn't provide or requires tweaking */
+.tracking-widest { letter-spacing: 0.15em; }
+.rounded-4 { border-radius: 1.5rem !important; }
+
+/* Custom Focus Ring for consistent aesthetics */
+.form-control:focus {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+  border-color: #0d6efd;
+}
+
+.input-group-text {
+  border-color: #dee2e6;
+}
+
+/* Specific button override for the high-end feel */
+.btn-primary {
+  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+  border: none;
+}
+</style>

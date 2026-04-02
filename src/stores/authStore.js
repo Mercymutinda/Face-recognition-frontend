@@ -1,6 +1,6 @@
-//src/stores/authStore.js
 import { defineStore } from "pinia";
 import { authService } from "@/services/authService";
+import { useAlert } from "@/composables/alerts"; // Import alerts
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -10,7 +10,6 @@ export const useAuthStore = defineStore("auth", {
 
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
-
     userCan: (state) => (role) => {
       if (!state.user?.roles) return false;
       return state.user.roles.some(r => r.toUpperCase() === role.toUpperCase());
@@ -20,12 +19,12 @@ export const useAuthStore = defineStore("auth", {
   actions: {
     hasRole(role) {
       if (!this.user || !this.user.roles) return false;
-      // Normalize both to uppercase to prevent casing errors
       return this.user.roles.some(r => r.toUpperCase() === role.toUpperCase());
     },
 
     // LOGIN
     async login(payload) {
+      const { toastSuccess, toastError } = useAlert();
       try {
         const res = await authService.login(payload);
 
@@ -34,63 +33,47 @@ export const useAuthStore = defineStore("auth", {
 
         this.setUser(res.data.user);
         localStorage.setItem("user", JSON.stringify(this.user));
-        return res;
+        
+        toastSuccess("Welcome", `Signed in as ${this.user.username}`);
+        return true;
       } catch (err) {
-        console.error("Login failed:", err);
+        const msg = err.response?.data?.detail || "Invalid credentials";
+        toastError("Login Failed", msg);
         throw err;
       }
     },
 
     // SIGNUP
     async signup(payload) {
+      const { toastSuccess, toastError } = useAlert();
       try {
-        return await authService.signup(payload);
+        await authService.signup(payload);
+        
+        // Success Toast
+        toastSuccess("Account Created", "Please sign in with your new credentials.");
+        return true; // Explicitly return true for the component logic
       } catch (err) {
-        console.error("Signup failed:", err);
-        throw err;
-      }
-    },
-
-    // REFRESH TOKEN
-    async refreshToken() {
-      try {
-        const res = await authService.refresh();
-
-        this.accessToken = res.data.access_token;
-
-        return this.accessToken;
-      } catch (err) {
-        console.error("Refresh failed:", err);
-
-        this.logout(); //allback
+        const msg = err.response?.data?.detail || "Registration failed";
+        toastError("Signup Error", msg);
         throw err;
       }
     },
 
     // LOGOUT
     async logout() {
+      const { toastInfo } = useAlert();
       try {
         await authService.logout();
+      } catch (err) {
+        console.warn("Logout request failed");
+      } finally {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
-      } catch (err) {
-        console.warn("Logout request failed (continuing anyway)");
-      }
-
-      this.clearAuth();
-    },
-
-    //LOCK ACCOUNT
-    async lockAccount(payload) {
-      try {
-        return await authService.lockAccount(payload);
-      } catch (err) {
-        console.error("Lock account failed:", err);
-        throw err;
+        this.clearAuth();
+        toastInfo("Signed Out", "You have been logged out successfully.");
       }
     },
 
-    //SET USER
     setUser(user) {
       this.user = {
         ...user,
@@ -98,7 +81,6 @@ export const useAuthStore = defineStore("auth", {
       };
     },
 
-    //CLEAR AUTH
     clearAuth() {
       this.user = null;
       this.accessToken = null;
