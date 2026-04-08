@@ -41,5 +41,8 @@ export const academicService = {
   // SESSIONS
   startSession: (data) => api.post('/academic/sessions', data),
   endSession: (sessionId) =>
-    api.patch(`/academic/sessions/${sessionId}/end`)
+    api.patch(`/academic/sessions/${sessionId}/end`),
+      // Added Session Endpoints
+  getSessions: (params) => api.get("/academic/sessions", { params }),
+  getSessionById: (sessionId) => api.get(`/academic/sessions/${sessionId}`),
 };

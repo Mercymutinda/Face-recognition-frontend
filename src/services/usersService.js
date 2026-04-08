@@ -1,7 +1,7 @@
 // src/services/userService.js
 import api from "@/utils/api";
 
-export const userService = {
+export const usersService = {
   getMyProfile: () => api.get("/users/me"),
 
   getUsers: (params) => api.get("/users", { params }),

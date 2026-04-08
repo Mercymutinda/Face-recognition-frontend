@@ -1,60 +1,79 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import api from "@/utils/api";
+import { onMounted } from "vue";
+import { useAttendanceStore } from "@/stores/attendanceStore";
+import DataTable from "@/components/DataTable/DataTable.vue";
+import { useAlert } from "@/composables/alerts";
 
-const sessions = ref([]);
-const loading  = ref(true);
+const attendanceStore = useAttendanceStore();
+const { confirmAction } = useAlert();
 
-onMounted(async () => {
-  try { const { data } = await api.get("/attendance/sessions"); sessions.value = data ?? []; }
-  finally { loading.value = false; }
+// Define columns for the DataTable
+const columns = [
+  { field: "id", header: "ID", width: "80px" },
+  { field: "unit_id", header: "Unit" },
+  { field: "class_id", header: "Class" },
+  { field: "hall_id", header: "Hall", slot: "cell-hall_id" },
+  { field: "started_at", header: "Started", slot: "cell-started_at" },
+  { field: "ended_at", header: "Ended", slot: "cell-ended_at" },
+  { field: "is_active", header: "Status", slot: "cell-is_active" }
+];
+
+onMounted(() => {
+  attendanceStore.fetchSessions();
 });
 
-async function endSession(s) {
-  await api.post(`/attendance/sessions/${s.id}/end`);
-  s.is_active = false;
-}
-
 const fmt = (dt) => dt ? new Date(dt).toLocaleString() : "—";
+
+// Handle the custom action click from the DataTable
+async function handleManage(row) {
+  if (!row.is_active) {
+    alert("This session has already ended.");
+    return;
+  }
+  
+  const result = await confirmAction(
+    "End Session", 
+    `Are you sure you want to end Session #${row.id}?`
+  );
+  
+  if (result.isConfirmed) {
+    await attendanceStore.endSession(row.id);
+  }
+}
 </script>
 
 <template>
   <BasePageHeading title="Attendance Sessions" subtitle="All recorded attendance sessions"/>
 
   <div class="content">
-    <div v-if="loading" class="text-center py-5"><div class="spinner-border" style="color:#E65F0E;"></div></div>
+    <DataTable
+      title="Session Logs"
+      :columns="columns"
+      :data="attendanceStore.sessions"
+      :loading="attendanceStore.loading"
+      :show-create="false"
+      :actions="['manage']" 
+      :action-icons="{ manage: 'fa fa-stop-circle text-danger' }"
+      :action-labels="{ manage: 'End Session' }"
+      @manage="handleManage"
+    >
+      <template #cell-hall_id="{ value }">
+        <span class="text-muted">{{ value || "—" }}</span>
+      </template>
 
-    <BaseBlock v-else content-full>
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="bg-body-light">
-            <tr><th>#</th><th>Unit</th><th>Class</th><th>Hall</th><th>Started</th><th>Ended</th><th>Status</th><th class="text-end">Actions</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in sessions" :key="s.id">
-              <td class="text-muted" style="font-size:12px;">{{ s.id }}</td>
-              <td>{{ s.unit_id }}</td>
-              <td>{{ s.class_id }}</td>
-              <td>{{ s.hall_id || "—" }}</td>
-              <td style="font-size:12px;">{{ fmt(s.started_at) }}</td>
-              <td style="font-size:12px;">{{ fmt(s.ended_at) }}</td>
-              <td>
-                <span class="badge" :class="s.is_active ? 'bg-success' : 'bg-secondary'">
-                  {{ s.is_active ? "Live" : "Ended" }}
-                </span>
-              </td>
-              <td class="text-end">
-                <button v-if="s.is_active" class="btn btn-sm btn-alt-danger" @click="endSession(s)">
-                  End
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!sessions.length">
-              <td colspan="8" class="text-center text-muted py-4">No sessions recorded.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </BaseBlock>
+      <template #cell-started_at="{ value }">
+        <span class="text-muted" style="font-size:12px;">{{ fmt(value) }}</span>
+      </template>
+
+      <template #cell-ended_at="{ value }">
+        <span class="text-muted" style="font-size:12px;">{{ fmt(value) }}</span>
+      </template>
+
+      <template #cell-is_active="{ value }">
+        <span class="badge" :class="value ? 'bg-success' : 'bg-secondary'">
+          {{ value ? "Live" : "Ended" }}
+        </span>
+      </template>
+    </DataTable>
   </div>
 </template>

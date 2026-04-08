@@ -1,11 +1,13 @@
 // src/stores/examsStore.js
 import { defineStore } from "pinia";
 import { examsService } from "@/services/examsService";
+import { useAlert } from "@/composables/alerts";
 
 export const useExamsStore = defineStore("exams", {
   state: () => ({
     activeExams: [],
     logs: [],
+    loading: false,
   }),
 
   actions: {
@@ -14,8 +16,13 @@ export const useExamsStore = defineStore("exams", {
     },
 
     async fetchActiveExams() {
-      const { data } = await examsService.getActiveExams();
-      this.activeExams = data;
+      this.loading = true;
+      try {
+        const { data } = await examsService.getActiveExams();
+        this.activeExams = data.items || data;
+      } finally {
+        this.loading = false;
+      }
     },
 
     async endExam(id) {
@@ -27,9 +34,17 @@ export const useExamsStore = defineStore("exams", {
       return await examsService.authenticateStudent(id, payload);
     },
 
-    async fetchLogs() {
-      const { data } = await examsService.getLogs();
-      this.logs = data;
+    async fetchLogs(params = {}) {
+      this.loading = true;
+      const { toastError } = useAlert();
+      try {
+        const { data } = await examsService.getExamLogs(params);
+        this.logs = data.items || data;
+      } catch (err) {
+        toastError("Error", "Failed to fetch exam logs.");
+      } finally {
+        this.loading = false;
+      }
     },
   },
 });

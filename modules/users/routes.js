@@ -11,12 +11,7 @@ const userRoutes = [
     component: () => import( "./views/LecturersView.vue"),
     meta: { requiresRole: "ADMIN" }, 
   },
-  {
-    path: "students",
-    name: "students", 
-    component: () => import( "./views/StudentsView.vue"),
-    meta: { requiresRole: "ADMIN" }, 
-  }
+
 ];
 
 export default userRoutes;

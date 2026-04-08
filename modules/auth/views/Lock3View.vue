@@ -2,7 +2,7 @@
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
-import { useAuthStore } from "@/stores/authStores";
+import { useAuthStore } from "@/stores/authStore";
 import { useBackendValidation } from "@/composables/useBackendValidation";
 
 const store = useTemplateStore();

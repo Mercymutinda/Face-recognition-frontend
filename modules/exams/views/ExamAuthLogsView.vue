@@ -1,50 +1,54 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useAcademicSetupStore }    from "~/academicSetup/store/academicSetupStore";
-import api from "@/utils/api";
+import { useAcademicSetupStore } from "@/stores/academicStore";
+import { useExamsStore } from "@/stores/examStore";
+import DataTable from "@/components/DataTable/DataTable.vue";
 
-const acadStore  = useAcademicSetupStore();
-const logs       = ref([]);
-const loading    = ref(true);
+const acadStore = useAcademicSetupStore();
+const examsStore = useExamsStore();
+
 const filterUnit = ref("");
 const filterStatus = ref("");
 
-onMounted(async () => {
-  try {
-    const params = {};
-    if (filterUnit.value) params.unit_id = filterUnit.value;
-    const [l] = await Promise.all([
-      api.get("/exam-auth/logs", { params }),
-      acadStore.fetchUnits(),
-      acadStore.fetchHalls(),
-    ]);
-    logs.value = l.data ?? [];
-  } finally { loading.value = false; }
+const columns = [
+  { field: "student_id", header: "Student ID" },
+  { field: "unit_id", header: "Unit", slot: "cell-unit_id" },
+  { field: "hall_id", header: "Hall", slot: "cell-hall_id" },
+  { field: "liveness_score", header: "Liveness", slot: "cell-liveness_score" },
+  { field: "match_score", header: "Match", slot: "cell-match_score" },
+  { field: "status", header: "Status", slot: "cell-status" },
+  { field: "verified_at", header: "Time", slot: "cell-verified_at" }
+];
+
+onMounted(() => {
+  examsStore.fetchLogs();
+  acadStore.fetchUnits();
+  acadStore.fetchHalls();
 });
 
 const filtered = computed(() => {
-  return logs.value.filter((l) =>
-    (!filterUnit.value   || l.unit_id == filterUnit.value) &&
+  return examsStore.logs.filter((l) =>
+    (!filterUnit.value || l.unit_id == filterUnit.value) &&
     (!filterStatus.value || l.status === filterStatus.value)
   );
 });
 
 const summary = computed(() => ({
-  total:    filtered.value.length,
+  total: filtered.value.length,
   verified: filtered.value.filter((l) => l.status === "verified").length,
   rejected: filtered.value.filter((l) => l.status === "rejected").length,
-  spoof:    filtered.value.filter((l) => l.status === "spoof").length,
+  spoof: filtered.value.filter((l) => l.status === "spoof").length,
 }));
 
 const unitName = (id) => acadStore.units.find((u) => u.id === id)?.name || `Unit #${id}`;
 const hallName = (id) => acadStore.halls.find((h) => h.id === id)?.name || (id ? `Hall #${id}` : "—");
-const fmt      = (dt)  => dt ? new Date(dt).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }) : "—";
-const pct      = (v)   => v != null ? (v * 100).toFixed(1) + "%" : "—";
+const fmt = (dt) => dt ? new Date(dt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+const pct = (v) => v != null ? (v * 100).toFixed(1) + "%" : "—";
 
 const statusBadge = (s) => ({
   verified: "bg-success",
   rejected: "bg-danger",
-  spoof:    "bg-warning text-dark",
+  spoof: "bg-warning text-dark",
 }[s] || "bg-secondary");
 </script>
 
@@ -67,7 +71,6 @@ const statusBadge = (s) => ({
   </BasePageHeading>
 
   <div class="content">
-    <!-- Summary row -->
     <div class="row g-3 mb-4">
       <div v-for="s in [
         { label:'Total',    val: summary.total,    color:'#331B11' },
@@ -82,56 +85,46 @@ const statusBadge = (s) => ({
       </div>
     </div>
 
-    <div v-if="loading" class="text-center py-5"><div class="spinner-border" style="color:#E65F0E;"></div></div>
+    <DataTable
+      title="Authentication Records"
+      :columns="columns"
+      :data="filtered"
+      :loading="examsStore.loading"
+      :show-create="false"
+    >
+      <template #cell-unit_id="{ value }">
+        <span class="text-muted" style="font-size:12.5px;">{{ unitName(value) }}</span>
+      </template>
 
-    <BaseBlock v-else content-full>
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="bg-body-light">
-            <tr>
-              <th>Student</th>
-              <th>Unit</th>
-              <th>Hall</th>
-              <th>Liveness</th>
-              <th>Match</th>
-              <th>Status</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="l in filtered" :key="l.id">
-              <td>
-                <div class="fw-semibold" style="font-size:13px;">{{ l.student_id }}</div>
-              </td>
-              <td class="text-muted" style="font-size:12.5px;">{{ unitName(l.unit_id) }}</td>
-              <td class="text-muted" style="font-size:12.5px;">{{ hallName(l.hall_id) }}</td>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div style="width:48px;height:4px;border-radius:2px;background:rgba(0,0,0,.08);flex-shrink:0;">
-                    <div style="height:100%;border-radius:2px;background:#415A20;"
-                      :style="{ width: l.liveness_score ? (l.liveness_score*100)+'%' : '0%' }"></div>
-                  </div>
-                  <span style="font-size:11px;font-family:'DM Mono',monospace;">{{ pct(l.liveness_score) }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div style="width:48px;height:4px;border-radius:2px;background:rgba(0,0,0,.08);flex-shrink:0;">
-                    <div style="height:100%;border-radius:2px;background:#E65F0E;"
-                      :style="{ width: l.match_score ? (l.match_score*100)+'%' : '0%' }"></div>
-                  </div>
-                  <span style="font-size:11px;font-family:'DM Mono',monospace;">{{ pct(l.match_score) }}</span>
-                </div>
-              </td>
-              <td><span :class="['badge', statusBadge(l.status)]">{{ l.status }}</span></td>
-              <td class="text-muted" style="font-size:11.5px;">{{ fmt(l.verified_at) }}</td>
-            </tr>
-            <tr v-if="!filtered.length">
-              <td colspan="7" class="text-center text-muted py-4">No records found.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </BaseBlock>
+      <template #cell-hall_id="{ value }">
+        <span class="text-muted" style="font-size:12.5px;">{{ hallName(value) }}</span>
+      </template>
+
+      <template #cell-liveness_score="{ value }">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:48px;height:4px;border-radius:2px;background:rgba(0,0,0,.08);flex-shrink:0;">
+            <div style="height:100%;border-radius:2px;background:#415A20;" :style="{ width: value ? (value*100)+'%' : '0%' }"></div>
+          </div>
+          <span style="font-size:11px;font-family:'DM Mono',monospace;">{{ pct(value) }}</span>
+        </div>
+      </template>
+
+      <template #cell-match_score="{ value }">
+        <div class="d-flex align-items-center gap-2">
+          <div style="width:48px;height:4px;border-radius:2px;background:rgba(0,0,0,.08);flex-shrink:0;">
+            <div style="height:100%;border-radius:2px;background:#E65F0E;" :style="{ width: value ? (value*100)+'%' : '0%' }"></div>
+          </div>
+          <span style="font-size:11px;font-family:'DM Mono',monospace;">{{ pct(value) }}</span>
+        </div>
+      </template>
+
+      <template #cell-status="{ value }">
+        <span :class="['badge', statusBadge(value)]">{{ value }}</span>
+      </template>
+
+      <template #cell-verified_at="{ value }">
+        <span class="text-muted" style="font-size:11.5px;">{{ fmt(value) }}</span>
+      </template>
+    </DataTable>
   </div>
 </template>
