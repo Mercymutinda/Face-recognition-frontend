@@ -1,7 +1,8 @@
 <script setup>
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import api from "@/utils/api";
 
 const router    = useRouter();
 const route     = useRoute();
@@ -9,6 +10,8 @@ const authStore = useAuthStore();
 
 const signupRole = computed(() => route.query.role || "student");
 const isLecturer = computed(() => signupRole.value === "lecturer");
+
+const programs = ref([]);
 
 const form = reactive({
   username: "",
@@ -18,14 +21,25 @@ const form = reactive({
   password: "",
   confirmPassword: "",
   full_name: "",
-  program: "BSCS",
+  program: "", // Default to empty
   year_of_study: 1,
 });
 
 const error   = ref("");
-
 const loading = ref(false);
 const step    = ref(1);
+
+// Fetch programs from backend on mount
+onMounted(async () => {
+  if (!isLecturer.value) {
+    try {
+      const { data } = await api.get("/academic/programs");
+      programs.value = data.items || data;
+    } catch (err) {
+      console.error("Failed to load programs:", err);
+    }
+  }
+});
 
 function nextStep() {
   error.value = "";
@@ -33,8 +47,14 @@ function nextStep() {
     error.value = "Please fill in all required fields before continuing.";
     return;
   }
+  // Require program selection for students
+  if (!isLecturer.value && !form.program) {
+    error.value = "Please select a program.";
+    return;
+  }
   step.value = 2;
 }
+
 async function onSubmit() {
   if (form.password !== form.confirmPassword) {
     error.value = "Passwords do not match.";
@@ -55,13 +75,13 @@ async function onSubmit() {
       router.push({ name: "auth-signin3" });
     }
   } catch (err) {
-    // This will now capture the 500 error or the "Invalid Role" message
     error.value = err.response?.data?.detail || "A server error occurred. Please ensure roles are seeded.";
     console.error("Signup error:", err);
   } finally {
     loading.value = false;
   }
 }
+
 // Password strength calculation
 const pwStrength = computed(() => {
   const p = form.password;
@@ -142,9 +162,6 @@ const pwColorClass = computed(() => {
           <div v-if="error" class="alert alert-danger py-2 mb-4 small rounded-3 border-0 shadow-sm">
             <i class="fa fa-exclamation-triangle me-2"></i> {{ error }}
           </div>
-          <!-- <div v-if="success" class="alert alert-success py-2 mb-4 small rounded-3 border-0 shadow-sm">
-            <i class="fa fa-check-circle me-2"></i> {{ success }}
-          </div> -->
 
           <div v-if="step === 1">
             <div class="mb-4">
@@ -180,8 +197,10 @@ const pwColorClass = computed(() => {
                 <div class="col-md-8">
                   <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Program</label>
                   <select v-model="form.program" class="form-select bg-light border-0 py-2">
-                    <option value="BSCS">BSc. Computer Science</option>
-                    <option value="BBIT">BSc. Business IT</option>
+                    <option value="" disabled>Select your program</option>
+                    <option v-for="p in programs" :key="p.id" :value="p.code">
+                      {{ p.name }} ({{ p.code }})
+                    </option>
                   </select>
                 </div>
                 <div class="col-md-4">

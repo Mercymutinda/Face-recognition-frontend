@@ -288,6 +288,7 @@ export const useAcademicSetupStore = defineStore("academicSetup", {
         await this.fetchTimetable();
       } catch (err) {
         toastError("Error", _errMsg(err));
+        throw err;
       }
     },
 
