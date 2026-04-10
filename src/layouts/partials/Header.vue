@@ -26,9 +26,10 @@ function eventHeaderSearch(event) {
     store.headerSearch({ mode: "off" });
   }
 }
-// script setup
+// Header.vue script section
 const onLockAccount = async () => {
   await authStore.lockAccount(); 
+  router.push({ name: "auth-lock3" }); // ADD THIS LINE!
 };
 // Attach ESCAPE key event listener
 onMounted(() => {

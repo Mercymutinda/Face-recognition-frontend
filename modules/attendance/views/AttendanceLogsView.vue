@@ -1,3 +1,4 @@
+<!-- for the admin -->
 <script setup>
 import { onMounted } from "vue";
 import { useAttendanceStore } from "@/stores/attendanceStore";

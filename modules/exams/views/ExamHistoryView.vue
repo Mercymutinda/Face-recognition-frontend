@@ -6,7 +6,7 @@ const records = ref([]);
 const loading = ref(true);
 
 onMounted(async () => {
-  try { const { data } = await api.get("/exam-auth/my-history"); records.value = data ?? []; }
+  try { const { data } = await api.get("/exams/my-history"); records.value = data ?? []; }
   finally { loading.value = false; }
 });
 

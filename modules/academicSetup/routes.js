@@ -34,6 +34,18 @@ const academicRoutes = [
     beforeEnter: useRequireRoleGuard('ADMIN')
 
   },
+  {
+    path: "academic/my-units",
+    name: "my-units",
+    component: () => import("./views/LecturerUnitsView.vue"),
+    beforeEnter: useRequireRoleGuard('LECTURER')
+  },
+  {
+    path: "academic/my-schedule",
+    name: "my-schedule",
+    component: () => import("./views/LecturerTimetableView.vue"),
+    beforeEnter: useRequireRoleGuard('LECTURER')
+  },
 ];
 
 export default academicRoutes;

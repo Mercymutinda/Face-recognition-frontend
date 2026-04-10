@@ -1,3 +1,4 @@
+// modules/students/routes.js
 const studentRoutes = [
   {
     path: "students",
@@ -11,6 +12,13 @@ const studentRoutes = [
     component: () => import("./views/StudentProfileView.vue"),
     meta: { requiresRole: "STUDENT" },
   },
+  // ADD THIS NEW ROUTE:
+  {
+    path: "timetable/my-schedule",
+    name: "my-timetable", // Matches the Student sidebar 'to: "timetable"'
+    component: () => import("./views/MyTimetableView.vue"),
+    meta: { requiresRole: "STUDENT" }, 
+  }
 ];
 
 export default studentRoutes;

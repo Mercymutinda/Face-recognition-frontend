@@ -1,6 +1,7 @@
+// src/stores/authStore.js
 import { defineStore } from "pinia";
 import { authService } from "@/services/authService";
-import { useAlert } from "@/composables/alerts"; // Import alerts
+import { useAlert } from "@/composables/alerts";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -22,18 +23,14 @@ export const useAuthStore = defineStore("auth", {
       return this.user.roles.some(r => r.toUpperCase() === role.toUpperCase());
     },
 
-    // LOGIN
     async login(payload) {
       const { toastSuccess, toastError } = useAlert();
       try {
         const res = await authService.login(payload);
-
         this.accessToken = res.data.access_token;
         localStorage.setItem("accessToken", this.accessToken);
-
         this.setUser(res.data.user);
         localStorage.setItem("user", JSON.stringify(this.user));
-        
         toastSuccess("Welcome", `Signed in as ${this.user.username}`);
         return true;
       } catch (err) {
@@ -43,15 +40,12 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    // SIGNUP
     async signup(payload) {
       const { toastSuccess, toastError } = useAlert();
       try {
         await authService.signup(payload);
-        
-        // Success Toast
         toastSuccess("Account Created", "Please sign in with your new credentials.");
-        return true; // Explicitly return true for the component logic
+        return true;
       } catch (err) {
         const msg = err.response?.data?.detail || "Registration failed";
         toastError("Signup Error", msg);
@@ -59,9 +53,17 @@ export const useAuthStore = defineStore("auth", {
       }
     },
 
-    // LOGOUT
+    // ADDED LOCK ACCOUNT ACTION
+    async lockAccount() {
+      // Clear the token so they are "logged out" security-wise
+      this.accessToken = null;
+      localStorage.removeItem("accessToken");
+      // Notice we DO NOT clear "user". We keep it so the lock screen knows who they are.
+    },
+
     async logout() {
-      const { toastInfo } = useAlert();
+      // FIXED: Changed toastInfo to toastSuccess
+      const { toastSuccess } = useAlert();
       try {
         await authService.logout();
       } catch (err) {
@@ -70,20 +72,28 @@ export const useAuthStore = defineStore("auth", {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
         this.clearAuth();
-        toastInfo("Signed Out", "You have been logged out successfully.");
+        toastSuccess("Signed Out", "You have been logged out successfully.");
+      }
+    },
+    async refreshToken() {
+      try {
+        const res = await authService.refresh();
+        this.accessToken = res.data.access_token;
+        localStorage.setItem("accessToken", this.accessToken);
+        return this.accessToken;
+      } catch (err) {
+        throw err;
       }
     },
 
     setUser(user) {
-      this.user = {
-        ...user,
-        roles: user.roles || [],
-      };
+      this.user = { ...user, roles: user.roles || [] };
     },
 
     clearAuth() {
       this.user = null;
       this.accessToken = null;
     },
+
   },
 });

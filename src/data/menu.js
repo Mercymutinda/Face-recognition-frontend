@@ -111,14 +111,14 @@ export default {
 
   lecturer: [
     { name: "Dashboard", to: "dashboard", icon: "si si-speedometer" },
-    { name: "My Schedule", to: "lecturer-schedule", icon: "si si-calendar" },
-    { name: "Units", to: "units", icon: "fa fa-book" },
+    { name: "My Schedule", to: "my-schedule", icon: "si si-calendar" }, // Changed route name
+    { name: "My Units", to: "my-units", icon: "fa fa-book" }, // Changed route name
     {
       name: "Attendance Scanner",
-      to: "lecturer-scanner",
+      to: "attendance-scanner",
       icon: "si si-camera",
     },
-    { name: "Exam Auth", to: "lecturer-exam", icon: "fa fa-user-check" },
+    { name: "Exam Auth", to: "exam-auth", icon: "fa fa-user-check" },
     { name: "Reports", to: "reports", icon: "fa fa-chart-line" },
   ],
 
@@ -129,7 +129,7 @@ export default {
       to: "face-registration",
       icon: "si si-user-following",
     },
-    { name: "My Timetable", to: "timetable", icon: "si si-calendar" },
+    { name: "My Timetable", to: "my-timetable", icon: "si si-calendar" },
     {
       name: "Attendance History",
       to: "my-attendance",

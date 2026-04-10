@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRoute }     from "vue-router";
-import { useAuthStore } from "@/stores/auth";
-import api              from "@/utils/api";
-import { useAcademicSetupStore } from "~/academicSetup/store/academicSetupStore";
+import { useAuthStore } from "@/stores/authStore";
+import api from "@/utils/api";
+import { useAcademicSetupStore } from "@/stores/academicStore";
+
 
 const route     = useRoute();
 const authStore = useAuthStore();

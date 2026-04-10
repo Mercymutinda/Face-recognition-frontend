@@ -11,7 +11,8 @@ const authStore = useAuthStore();
 const signupRole = computed(() => route.query.role || "student");
 const isLecturer = computed(() => signupRole.value === "lecturer");
 
-const programs = ref([]);
+// Hold the classes fetched from the backend
+const cohorts = ref([]);
 
 const form = reactive({
   username: "",
@@ -21,22 +22,21 @@ const form = reactive({
   password: "",
   confirmPassword: "",
   full_name: "",
-  program: "", // Default to empty
-  year_of_study: 1,
+  cohort_id: "", // Changed from program/year to cohort_id
 });
 
 const error   = ref("");
 const loading = ref(false);
 const step    = ref(1);
 
-// Fetch programs from backend on mount
+// Fetch Classes (Cohorts) from backend on mount
 onMounted(async () => {
   if (!isLecturer.value) {
     try {
-      const { data } = await api.get("/academic/programs");
-      programs.value = data.items || data;
+      const { data } = await api.get("/academic/cohorts");
+      cohorts.value = data.items || data;
     } catch (err) {
-      console.error("Failed to load programs:", err);
+      console.error("Failed to load classes:", err);
     }
   }
 });
@@ -47,9 +47,9 @@ function nextStep() {
     error.value = "Please fill in all required fields before continuing.";
     return;
   }
-  // Require program selection for students
-  if (!isLecturer.value && !form.program) {
-    error.value = "Please select a program.";
+  // Require Class selection for students
+  if (!isLecturer.value && !form.cohort_id) {
+    error.value = "Please select your Class.";
     return;
   }
   step.value = 2;
@@ -67,22 +67,22 @@ async function onSubmit() {
   try {
     const { confirmPassword, ...payload } = form;
     payload.assigned_role = isLecturer.value ? "LECTURER" : "STUDENT";
+    
+    // FIX: Convert empty strings to null and strings to integers to prevent FastAPI 500 crashes
+    payload.cohort_id = payload.cohort_id ? parseInt(payload.cohort_id) : null;
 
-    // The store should return true on success, or throw on error
     const ok = await authStore.signup(payload);
 
     if (ok) {
       router.push({ name: "auth-signin3" });
     }
   } catch (err) {
-    error.value = err.response?.data?.detail || "A server error occurred. Please ensure roles are seeded.";
-    console.error("Signup error:", err);
+    error.value = err.response?.data?.detail || "A server error occurred. Please check your inputs.";
   } finally {
     loading.value = false;
   }
 }
 
-// Password strength calculation
 const pwStrength = computed(() => {
   const p = form.password;
   if (!p) return 0;
@@ -130,18 +130,14 @@ const pwColorClass = computed(() => {
 
           <div class="d-flex flex-column gap-4">
             <div class="d-flex align-items-center gap-3">
-              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" 
-                   style="width: 32px; height: 32px;"
-                   :class="step >= 1 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
+              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" style="width: 32px; height: 32px;" :class="step >= 1 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
                 <i v-if="step > 1" class="fa fa-check small"></i>
                 <span v-else>1</span>
               </div>
               <span class="fw-bold" :class="step === 1 ? 'opacity-100' : 'opacity-50'">Personal Profile</span>
             </div>
             <div class="d-flex align-items-center gap-3">
-              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" 
-                   style="width: 32px; height: 32px;"
-                   :class="step === 2 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
+              <div class="rounded-circle d-flex align-items-center justify-content-center border border-2 shadow-sm" style="width: 32px; height: 32px;" :class="step === 2 ? 'bg-white text-dark border-white' : 'text-white border-white opacity-50'">
                 <span>2</span>
               </div>
               <span class="fw-bold" :class="step === 2 ? 'opacity-100' : 'opacity-50'">Account Security</span>
@@ -194,23 +190,14 @@ const pwColorClass = computed(() => {
               </div>
 
               <template v-if="!isLecturer">
-                <div class="col-md-8">
-                  <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Program</label>
-                  <select v-model="form.program" class="form-select bg-light border-0 py-2">
-                    <option value="" disabled>Select your program</option>
-                    <option v-for="p in programs" :key="p.id" :value="p.code">
-                      {{ p.name }} ({{ p.code }})
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Target Class (Cohort)</label>
+                  <select v-model="form.cohort_id" class="form-select bg-light border-0 py-2">
+                    <option value="" disabled>Select your registered class...</option>
+                    <option v-for="c in cohorts" :key="c.id" :value="c.id">
+                      {{ c.name }} (Year {{ c.year_of_study }})
                     </option>
                   </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Year</label>
-                  <div class="btn-group w-100">
-                    <button v-for="y in 4" :key="y" type="button" 
-                            class="btn btn-sm btn-outline-secondary" 
-                            :class="{ 'active': form.year_of_study === y }"
-                            @click="form.year_of_study = y">Y{{ y }}</button>
-                  </div>
                 </div>
               </template>
             </div>
@@ -226,66 +213,26 @@ const pwColorClass = computed(() => {
           <div v-if="step === 2">
             <div class="mb-4">
               <h3 class="fw-bold text-dark">Account Security</h3>
-              <p class="text-muted small">Choose a password to secure your academic records.</p>
             </div>
-
-            <div class="card bg-light border-0 rounded-3 mb-4 p-3 shadow-sm">
-              <div class="d-flex align-items-center gap-3">
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
-                  {{ form.full_name?.charAt(0) }}
-                </div>
-                <div>
-                  <div class="fw-bold text-dark">{{ form.full_name }}</div>
-                  <div class="text-muted extra-small">{{ form.email }}</div>
-                </div>
-                <button @click="step = 1" class="btn btn-sm btn-link ms-auto text-decoration-none p-0">Edit Details</button>
-              </div>
-            </div>
-
             <form @submit.prevent="onSubmit">
               <div class="mb-3">
                 <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Password</label>
                 <input v-model="form.password" type="password" class="form-control bg-light border-0 py-2 mb-2" placeholder="Min. 8 characters">
-                
-                <div v-if="form.password" class="progress" style="height: 4px;">
-                  <div class="progress-bar" :class="pwColorClass" :style="{ width: (pwStrength * 25) + '%' }"></div>
-                </div>
               </div>
-
               <div class="mb-5">
                 <label class="form-label small fw-bold text-muted text-uppercase tracking-wider">Confirm Password</label>
                 <input v-model="form.confirmPassword" type="password" class="form-control bg-light border-0 py-2" placeholder="Repeat password">
               </div>
-
               <div class="d-flex justify-content-between align-items-center">
                 <button type="button" @click="step = 1" class="btn btn-link text-muted text-decoration-none px-0">Go Back</button>
-                <button type="submit" class="btn btn-primary px-5 py-2 fw-bold d-flex align-items-center gap-2" :disabled="loading">
-                  <span v-if="loading" class="spinner-border spinner-border-sm"></span>
-                  Create Account <i class="fa fa-check"></i>
+                <button type="submit" class="btn btn-primary px-5 py-2 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>Create Account
                 </button>
               </div>
             </form>
           </div>
-
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.rounded-4 { border-radius: 1.5rem !important; }
-.tracking-wider { letter-spacing: 0.1em; }
-.extra-small { font-size: 0.75rem; }
-
-.form-control:focus, .form-select:focus {
-  background-color: #f8f9fa;
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #0d6efd, #0b5ed7);
-  border: none;
-}
-</style>

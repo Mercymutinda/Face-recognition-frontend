@@ -3,7 +3,7 @@ const faceRoutes = [
       path: "face/register",
       name: "face-registration",
       component: () => import("./views/FaceRegistrationView.vue"),
-      meta: { requiresPermission: "face:upload" },
+      meta: { requiresRole: "STUDENT" },
     },
   ];
   

@@ -11,16 +11,12 @@ const api = axios.create({
   },
 });
 
-//  REQUEST INTERCEPTOR (Attach token)
 api.interceptors.request.use((config) => {
   const authStore = useAuthStore();
-
-  const token = authStore.accessToken; //  FIXED
-
+  const token = authStore.accessToken; 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 
@@ -29,17 +25,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // DO NOT try to refresh token if the failure happened on login or signup
+    const isAuthRoute = originalRequest.url.includes('/auth/login') || originalRequest.url.includes('/auth/signup');
 
-    // If 401 and we haven't tried to refresh yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If 401, we haven't tried to refresh yet, AND it's not an auth route
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       originalRequest._retry = true;
-      const authStore = useAuthStore(); // Call inside the function!
-
+      const authStore = useAuthStore(); 
       try {
-        // Make sure refreshToken exists in authStore.js!
         await authStore.refreshToken();
-        originalRequest.headers["Authorization"] =
-          `Bearer ${authStore.accessToken}`;
+        originalRequest.headers["Authorization"] = `Bearer ${authStore.accessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         console.error("Refresh failed, logging out", refreshError);
@@ -50,4 +46,5 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 export default api;

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
-import { useAcademicSetupStore } from "~/academicSetup/store/academicSetupStore";
+import { useAcademicSetupStore } from "@/stores/academicStore";
 import api from "@/utils/api";
 
 const acadStore = useAcademicSetupStore();

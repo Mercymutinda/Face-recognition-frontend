@@ -15,7 +15,8 @@ const { fieldErrors, clearErrors, handleApiError } = useBackendValidation();
 const isLoading = ref(false);
 
 // Grab the username from local storage so they don't have to re-type it
-const savedUsername = localStorage.getItem("user.username") || "User";
+const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+const savedUsername = storedUser.username || "User";
 
 const state = reactive({
   password: "",
@@ -27,14 +28,11 @@ async function onSubmit() {
 
   try {
     // Send the saved username and the typed password to FastAPI
-    const response = await authStore.login({
+    await authStore.login({
       username: savedUsername,
       password: state.password,
     });
-
-    if (response.success) {
-      router.push({ name: "dashboard" }); // Make sure this matches your route name!
-    }
+    router.push({ name: "dashboard" });
   } catch (error) {
     // This will pop a red toast and attach any input errors to fieldErrors
     handleApiError(error);
