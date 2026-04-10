@@ -26,7 +26,7 @@ onMounted(async () => {
       api.get("/academic/units").then(r    => stats.value.units    = r.data.length).catch(()=>{}),
       api.get("/academic/halls").then(r    => stats.value.halls    = r.data.length).catch(()=>{}),
       api.get("/users").then(r             => stats.value.users    = (r.data.items??r.data).length).catch(()=>{}),
-      api.get("/attendance/sessions").then(r => sessions.value = (r.data??[]).filter(s=>s.is_active)).catch(()=>{}),
+      api.get("/academic/sessions").then(r => sessions.value = (r.data??[]).filter(s=>s.is_active)).catch(()=>{}),
     );
   }
 

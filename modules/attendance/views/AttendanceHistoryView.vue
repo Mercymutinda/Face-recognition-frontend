@@ -1,13 +1,10 @@
 <script setup>
-import { onMounted, computed } from "vue";
-import { useAttendanceStore } from "@/stores/attendanceStore";
-import { useAcademicSetupStore } from "@/stores/academicStore";
-import { useAuthStore } from "@/stores/authStore";
+import { ref, onMounted } from "vue";
+import api from "@/utils/api";
 import DataTable from "@/components/DataTable/DataTable.vue";
 
-const attendanceStore = useAttendanceStore();
-const acadStore = useAcademicSetupStore();
-const authStore = useAuthStore();
+const loading = ref(true);
+const enrichedHistory = ref([]);
 
 const columns = [
   { field: "date", header: "Date", width: "120px" },
@@ -18,45 +15,24 @@ const columns = [
 ];
 
 onMounted(async () => {
-  // Fetch everything needed to build a human-readable table
-  if (authStore.user?.id) {
-    await Promise.all([
-      attendanceStore.fetchUserAttendance(authStore.user.id),
-      attendanceStore.fetchSessions(), // To match session_id to actual class details
-      acadStore.fetchUnits(),
-      acadStore.fetchHalls()
-    ]);
-  }
-});
-
-// Map raw database IDs to human-readable names
-const enrichedHistory = computed(() => {
-  if (!attendanceStore.userAttendance.length) return [];
-
-  return attendanceStore.userAttendance.map(record => {
-    // Find the session this attendance record belongs to
-    const session = attendanceStore.sessions.find(s => s.id === record.session_id);
+  try {
+    // Hit the new optimized endpoint
+    const { data } = await api.get("/attendance/my-history");
     
-    // Find the names of the unit and hall
-    const unitName = session 
-      ? (acadStore.units.find(u => u.id === session.unit_id)?.name || `Unit #${session.unit_id}`) 
-      : "Unknown Unit";
-      
-    const hallName = session && session.hall_id
-      ? (acadStore.halls.find(h => h.id === session.hall_id)?.name || `Hall #${session.hall_id}`)
-      : "TBA";
-
-    const dateObj = new Date(record.timestamp);
-
-    return {
-      id: record.id,
-      date: dateObj.toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' }),
-      time: dateObj.toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' }),
-      unit: unitName,
-      hall: hallName,
-      status: record.status
-    };
-  });
+    // Format the timestamp into separate Date and Time strings for the table
+    enrichedHistory.value = data.map(record => {
+      const dateObj = new Date(record.timestamp);
+      return {
+        ...record,
+        date: dateObj.toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' }),
+        time: dateObj.toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })
+      };
+    });
+  } catch (err) {
+    console.error("Failed to fetch history", err);
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
@@ -71,7 +47,7 @@ const enrichedHistory = computed(() => {
       title="Recorded Sessions"
       :columns="columns"
       :data="enrichedHistory"
-      :loading="attendanceStore.loading || acadStore.loading.units"
+      :loading="loading"
       :show-create="false"
     >
       <template #cell-status="{ value }">
