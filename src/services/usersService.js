@@ -1,10 +1,12 @@
-// src/services/userService.js
 import api from "@/utils/api";
 
 export const usersService = {
   getMyProfile: () => api.get("/users/me"),
 
   getUsers: (params) => api.get("/users", { params }),
+
+  // ADD THIS LINE
+  createUser: (data) => api.post("/auth/signup", data),
 
   updateUser: (userId, data) => api.patch(`/users/${userId}`, data),
 

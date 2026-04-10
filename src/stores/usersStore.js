@@ -26,6 +26,20 @@ export const useUsersStore = defineStore("users", {
       }
     },
 
+    // --- ADD THIS NEW ACTION ---
+    async createUser(payload) {
+      const { toastSuccess, toastError } = useAlert();
+      try {
+        await usersService.createUser(payload);
+        toastSuccess("User Created", "New user has been successfully added.");
+        await this.fetchUsers();
+      } catch (err) {
+        toastError("Creation Failed", err.response?.data?.detail || "Could not create user.");
+        throw err; // Throw to stop the loading spinner in the modal
+      }
+    },
+    // ---------------------------
+
     async updateUser(id, payload) {
       const { toastSuccess, toastError } = useAlert();
       try {
@@ -34,6 +48,7 @@ export const useUsersStore = defineStore("users", {
         await this.fetchUsers();
       } catch (err) {
         toastError("Update Failed", err.response?.data?.detail || "Could not update user.");
+        throw err;
       }
     },
 
