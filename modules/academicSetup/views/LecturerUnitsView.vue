@@ -9,15 +9,22 @@ const authStore = useAuthStore();
 onMounted(() => {
   store.fetchUnits();
   store.fetchClasses();
+  store.fetchTimetable(); //  Must fetch timetable to know what they teach!
 });
 
 // Filter units to ONLY show the ones assigned to the logged-in lecturer
 // (Assuming your backend unit table/schema links units to lecturers. If it links via timetable, we filter that way).
+// 🔥 FIX: Filter units to ONLY show the ones assigned to the logged-in lecturer
 const myUnits = computed(() => {
-  return store.units; // For now, assuming API already filters by lecturer, or you can do: store.units.filter(u => u.lecturer_id === authStore.user.id)
+  // 1. Find all timetable entries for this specific lecturer
+  const myTimetable = store.timetable.filter(t => t.lecturer_id === authStore.user.id);
+  
+  // 2. Extract just the unique Unit IDs they are teaching
+  const myUnitIds = [...new Set(myTimetable.map(t => t.unit_id))];
+  
+  // 3. Return only the Units that match those IDs
+  return store.units.filter(u => myUnitIds.includes(u.id));
 });
-
-const getProgramName = (id) => store.classes.find(c => c.id === id)?.name || "General";
 </script>
 
 <template>

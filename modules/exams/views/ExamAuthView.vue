@@ -80,46 +80,52 @@ async function startAuth() {
 async function captureAndAuth() {
   if (!videoRef.value || !canvasRef.value || !examId.value) return;
 
+  const video = videoRef.value;
   const canvas = canvasRef.value;
-  canvas.width = videoRef.value.videoWidth;
-  canvas.height = videoRef.value.videoHeight;
-  canvas
-    .getContext("2d")
-    .drawImage(videoRef.value, 0, 0, canvas.width, canvas.height);
+  const ctx = canvas.getContext("2d");
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-  canvas.toBlob(
-    async (blob) => {
-      if (!blob) return;
+  const fd = new FormData();
+  
+  // Capture 3 frames with a 300ms delay between them to catch micro-movements
+  for (let i = 0; i < 3; i++) {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to blob wrapped in a promise
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
+    if (blob) {
+      fd.append("files", blob, `frame_${i}.jpg`);
+    }
+    
+    // Wait 300ms before taking the next frame
+    if (i < 2) await new Promise(r => setTimeout(r, 300)); 
+  }
 
-      const fd = new FormData();
-      fd.append("file", blob, "exam_frame.jpg");
+  try {
+    const { data } = await api.post(`/exams/${examId.value}/auth`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      try {
-        const { data } = await api.post(`/exams/${examId.value}/auth`, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
+    if (data && data.student_name) {
+      const existing = results.value.find((r) => r.reg_no === data.reg_no);
+      if (!existing) {
+        results.value.unshift({
+          name: data.student_name,
+          reg: data.reg_no,
+          liveness: data.liveness, // Actual liveness score!
+          match: data.match,
+          status: data.status,
+          ts: new Date().toLocaleTimeString(),
         });
-
-        if (data && data.student_name) {
-          const existing = results.value.find((r) => r.reg_no === data.reg_no);
-          if (!existing) {
-            results.value.unshift({
-              name: data.student_name,
-              reg: data.reg_no,
-              liveness: data.liveness,
-              match: data.match,
-              status: data.status,
-              ts: new Date().toLocaleTimeString(),
-            });
-          }
-        }
-      } catch (e) {
-        if (e.response?.status !== 400) console.warn(e);
       }
-    },
-    "image/jpeg",
-    0.8
-  );
+    }
+  } catch (e) {
+    if (e.response?.status !== 400) console.warn(e);
+  }
 }
+
 
 async function stopAuth() {
   stopCamera();

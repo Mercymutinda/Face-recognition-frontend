@@ -15,8 +15,7 @@ const uploading = ref(false);
 // Cache Buster for the Image
 const imageKey = ref(Date.now());
 const backendUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const activeFaceUrl = computed(() => `${backendUrl}/students/${authStore.user.id}/face/image?t=${imageKey.value}`);
-
+const activeFaceUrl = computed(() => `/api/students/${authStore.user.id}/face/image?t=${imageKey.value}`);
 // Live Scan State
 const scanning = ref(false);
 const scanResult = ref(null);

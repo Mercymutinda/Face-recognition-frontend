@@ -87,55 +87,50 @@ async function startSession() {
     alert(error.response?.data?.detail || "Could not start session. Does the /academic/sessions POST route exist in Python?");
   }
 }
-
 async function captureAndScan() {
   if (!videoRef.value || !canvasRef.value || !sessionId.value) return;
 
   const video = videoRef.value;
   const canvas = canvasRef.value;
-  const context = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d");
 
-  // Set canvas dimensions to match the video stream
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
-  // Draw the current video frame onto the hidden canvas
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const fd = new FormData();
 
-  // Convert the canvas frame to a Blob/File and send to FastAPI
-  canvas.toBlob(async (blob) => {
-    if (!blob) return;
+  // 🔥 FIX: Capture 3 frames with a 300ms delay to detect micro-movements
+  for (let i = 0; i < 3; i++) {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
+    
+    // Notice the key is "files" (plural) to match the backend!
+    if (blob) fd.append("files", blob, `frame_${i}.jpg`); 
+    
+    if (i < 2) await new Promise(r => setTimeout(r, 300)); 
+  }
 
-    const fd = new FormData();
-    // We ONLY append the file to FormData now
-    fd.append("file", blob, "live_capture.jpg");
+  try {
+    const { data } = await api.post(`/attendance/scan?session_id=${sessionId.value}`, fd, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
 
-    try {
-      // FIX: Attach session_id directly to the URL as a query parameter
-      const { data } = await api.post(`/attendance/scan?session_id=${sessionId.value}`, fd, {
-        headers: { "Content-Type": "multipart/form-data" }
+    if (data.users_present && data.users_present.length > 0) {
+      data.users_present.forEach(name => {
+        const alreadyScanned = recognized.value.find(r => r.name === name);
+        if (!alreadyScanned) {
+          recognized.value.unshift({ 
+            name: name, 
+            status: "Present", 
+            ts: new Date().toLocaleTimeString() 
+          });
+          scannedCount.value++;
+        }
       });
-
-      // Update UI if the backend AI found and matched faces
-      if (data.users_present && data.users_present.length > 0) {
-        data.users_present.forEach(name => {
-          // Prevent duplicates in the UI list
-          const alreadyScanned = recognized.value.find(r => r.name === name);
-          if (!alreadyScanned) {
-            recognized.value.unshift({ 
-              name: name, 
-              status: "Present", 
-              ts: new Date().toLocaleTimeString() 
-            });
-            scannedCount.value++;
-          }
-        });
-      }
-    } catch (e) {
-      // We quietly ignore 400 errors like "No face found" so the UI doesn't spam alerts
-      if (e.response?.status !== 400) console.warn("Scan processing error:", e);
     }
-  }, "image/jpeg", 0.8);
+  } catch (e) {
+    if (e.response?.status !== 400) console.warn("Scan processing error:", e);
+  }
 }
 
 async function endSession() {
