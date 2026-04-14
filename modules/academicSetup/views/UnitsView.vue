@@ -14,42 +14,40 @@ const editing = ref(null);
 const saving = ref(false);
 const viewMode = ref(false);
 
-// Form aligned with Backend
-const form = ref({ code: "", name: "", program_id: null, year_of_study: 1 });
+// 🔥 FIX: Form aligned with new independent Unit model
+const form = ref({ code: "", name: "" });
 
+// 🔥 FIX: Removed program and year from table columns
 const columns = [
-  { field: "code", header: "Unit Code", width: "120px" },
+  { field: "code", header: "Unit Code", width: "150px" },
   { field: "name", header: "Unit Name" },
-  { field: "year_of_study", header: "Year", width: "80px" },
 ];
 
 const tableActions = computed(() => {
   const actions = ['view'];
-  if (authStore.userCan('units:write')) actions.push('edit');
-  if (authStore.userCan('units:delete')) actions.push('delete');
+  if (authStore.hasRole('ADMIN')) actions.push('edit', 'delete');
   return actions;
 });
 
 onMounted(() => {
   store.fetchUnits();
-  store.fetchPrograms();
 });
 
 function openCreate() {
   editing.value = null; viewMode.value = false;
-  form.value = { code: "", name: "", program_id: null, year_of_study: 1 };
+  form.value = { code: "", name: "" };
   showModal.value = true;
 }
 
 function openEdit(u) {
   editing.value = u; viewMode.value = false;
-  form.value = { code: u.code, name: u.name, program_id: u.program_id, year_of_study: u.year_of_study };
+  form.value = { code: u.code, name: u.name };
   showModal.value = true;
 }
 
 function openView(u) {
   editing.value = u; viewMode.value = true;
-  form.value = { code: u.code, name: u.name, program_id: u.program_id, year_of_study: u.year_of_study };
+  form.value = { code: u.code, name: u.name };
   showModal.value = true;
 }
 
@@ -92,20 +90,10 @@ async function handleDelete(u) {
         <label class="form-label">Code *</label>
         <input v-model="form.code" type="text" class="form-control" :readonly="viewMode" required />
       </div>
+      
       <div class="col-md-8">
         <label class="form-label">Name *</label>
         <input v-model="form.name" type="text" class="form-control" :readonly="viewMode" required />
-      </div>
-      <div class="col-md-8">
-        <label class="form-label">Programme *</label>
-        <select v-model="form.program_id" class="form-select" :disabled="viewMode">
-          <option :value="null">-- Select Programme --</option>
-          <option v-for="p in store.programs" :key="p.id" :value="p.id">{{ p.name }}</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Year of Study</label>
-        <input v-model.number="form.year_of_study" type="number" class="form-control" :readonly="viewMode" />
       </div>
     </div>
     <template #footer>
