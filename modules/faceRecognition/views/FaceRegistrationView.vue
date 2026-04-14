@@ -15,8 +15,7 @@ const uploading = ref(false);
 // Cache Buster for the Image
 const imageKey = ref(Date.now());
 const backendUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const activeFaceUrl = computed(() => `/api/students/${authStore.user.id}/face/image?t=${imageKey.value}`);
-// Live Scan State
+const activeFaceUrl = computed(() => authStore.user ? `/api/students/${authStore.user.id}/face/image?t=${imageKey.value}` : '');// Live Scan State
 const scanning = ref(false);
 const scanResult = ref(null);
 const videoRef = ref(null);
@@ -120,8 +119,8 @@ async function captureAndSend() {
 
   <div class="content">
     
-    <div class="row justify-content-center mb-4" v-if="authStore.user.is_biometrics_registered">
-      <div class="col-md-8 col-lg-6">
+    <div class="row justify-content-center mb-4" v-if="authStore.user && authStore.user.is_biometrics_registered">
+    <div class="col-md-8 col-lg-6">
         <BaseBlock class="text-center py-4 mb-0" style="border: 2px solid #139a52;">
           <h4 class="h5 text-success fw-bold mb-3">
             <i class="fa fa-check-circle me-1"></i> Active Biometric Profile
