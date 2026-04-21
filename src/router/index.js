@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 import NProgress from "nprogress/nprogress.js";
 
 // Layouts
@@ -55,6 +55,12 @@ const routes = [
     children: [
       { path: "", redirect: { name: "dashboard" } },
       { path: "dashboard", name: "dashboard", component: DashboardView },
+      {
+        path: 'profile', 
+        name: 'my-profile',
+        component: () => import('@/views/backend/ProfileView.vue'),
+
+      },
 
       
       ...academicRoutes,
@@ -71,7 +77,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 });
 

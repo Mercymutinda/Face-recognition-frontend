@@ -8,9 +8,9 @@ const authStore = useAuthStore();
 const filterClass = ref(""); // For the dropdown
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const SLOTS = ["07:00", "10:00", "13:00", "16:00"];
-const SLOT_ENDS = { "07:00": "10:00", "10:00": "13:00", "13:00": "16:00", "16:00": "19:00" };
 
+const SLOTS = ["07:00", "10:00", "14:00", "17:00"];
+const SLOT_ENDS = { "07:00": "10:00", "10:00": "13:00", "14:00": "17:00", "17:00": "19:00" };
 onMounted(() => {
   store.fetchTimetable();
   store.fetchUnits();

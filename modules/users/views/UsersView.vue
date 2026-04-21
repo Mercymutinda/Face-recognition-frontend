@@ -33,7 +33,7 @@ const columns = [
   { field: "username", header: "Username" },
   { field: "full_name", header: "Full Name" },
   { field: "email", header: "Email" },
-  { field: "roles", header: "Role", slot: "role_badge" },
+  { field: "roles", header: "Role", slot: "cell-roles" }, // 🔥 Fixed slot name
 ];
 
 const tableActions = computed(() => {
@@ -152,15 +152,16 @@ async function handleDelete(u) {
       :total-pages="Math.ceil(usersStore.meta.total / usersStore.meta.limit) || 1"
       :actions="tableActions"
       @create="openCreate" 
-      @view="openView" 
+      
       @edit="openEdit" 
       @delete="handleDelete"
+      :show-create="false" @view="openView"
     >
-      <template #role_badge="{ row }">
+    <template #cell-roles="{ row }">
         <span
           v-for="role in row.roles"
           :key="role.id"
-          class="badge"
+          class="badge me-1" 
           :class="
             role.name === 'ADMIN'
               ? 'bg-danger'

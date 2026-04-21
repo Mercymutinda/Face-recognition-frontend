@@ -115,7 +115,8 @@ async function handleDelete(u) {
       :current-page="usersStore.meta.page"
       :total-pages="Math.ceil(usersStore.meta.total / usersStore.meta.limit) || 1"
       :actions="tableActions"
-      @view="openView"
+      
+      :show-create="false" @view="openView"
       @edit="openEdit"
       @delete="handleDelete"
       @change-page="(p) => usersStore.fetchUsers({ role: 'STUDENT', page: p })"

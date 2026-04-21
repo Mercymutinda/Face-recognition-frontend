@@ -89,17 +89,10 @@ async function captureAndAuth() {
 
   const fd = new FormData();
   
-  // Capture 3 frames with a 300ms delay between them to catch micro-movements
   for (let i = 0; i < 3; i++) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Convert canvas to blob wrapped in a promise
     const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
-    if (blob) {
-      fd.append("files", blob, `frame_${i}.jpg`);
-    }
-    
-    // Wait 300ms before taking the next frame
+    if (blob) fd.append("files", blob, `frame_${i}.jpg`);
     if (i < 2) await new Promise(r => setTimeout(r, 300)); 
   }
 
@@ -108,18 +101,28 @@ async function captureAndAuth() {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    if (data && data.student_name) {
-      const existing = results.value.find((r) => r.reg_no === data.reg_no);
-      if (!existing) {
-        results.value.unshift({
-          name: data.student_name,
-          reg: data.reg_no,
-          liveness: data.liveness, // Actual liveness score!
-          match: data.match,
-          status: data.status,
-          ts: new Date().toLocaleTimeString(),
-        });
-      }
+    // 🔥 FIX: Loop through the array of results returned by the backend
+    if (data && data.results) {
+      data.results.forEach((res) => {
+        const existing = results.value.find((r) => r.reg === res.reg_no);
+        
+        if (!existing) {
+          // Add new student to the UI log
+          results.value.unshift({
+            name: res.student_name,
+            reg: res.reg_no,
+            liveness: res.liveness,
+            match: res.match,
+            status: res.status,
+            ts: new Date().toLocaleTimeString(),
+          });
+        } else if (existing.status === 'Flagged' && res.status === 'Verified') {
+          // If they were flagged, but just got verified, update their badge in the UI!
+          existing.status = 'Verified';
+          existing.match = res.match;
+          existing.ts = new Date().toLocaleTimeString();
+        }
+      });
     }
   } catch (e) {
     if (e.response?.status !== 400) console.warn(e);
@@ -147,7 +150,9 @@ const statusBadge = (s) =>
     Verified: "bg-success",
     Rejected: "bg-danger",
     Flagged: "bg-warning text-dark",
+    Unknown: "bg-dark text-white", 
   })[s] || "bg-secondary";
+
 
 const pct = (v) => (v ? (v * 100).toFixed(1) + "%" : "0%");
 </script>

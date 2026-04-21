@@ -148,7 +148,7 @@ onUnmounted(() => {
                       <span class="badge rounded-pill bg-primary ms-2">3</span>
                     </a>
                     <RouterLink
-                      :to="{ name: 'dashboard' }"
+                      :to="{ name: 'my-profile' }"
                       class="dropdown-item d-flex align-items-center justify-content-between"
                     >
                       <span class="fs-sm fw-medium">Profile</span>

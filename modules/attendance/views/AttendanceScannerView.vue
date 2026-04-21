@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import { useRoute } from "vue-router";
-import { useAuthStore } from "@/stores/authStore"; // Fixed import path
+import { useAuthStore } from "@/stores/authStore"; 
 import api from "@/utils/api";
-import { useAcademicSetupStore } from "@/stores/academicStore"; // Fixed import path
+import { useAcademicSetupStore } from "@/stores/academicStore"; 
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -28,26 +28,48 @@ onMounted(() => {
   acadStore.fetchUnits();
   acadStore.fetchClasses();
   acadStore.fetchHalls();
+  acadStore.fetchTimetable(); 
 });
 
-onUnmounted(() => {
-  stopCamera();
+onUnmounted(() => { stopCamera(); });
+
+// 🔥 FIX 1: Only show Units assigned to this Lecturer in the Timetable
+const myUnits = computed(() => {
+  if (!acadStore.timetable.length) return [];
+  const myTimetable = acadStore.timetable.filter(t => t.lecturer_id === authStore.user.id);
+  const myUnitIds = [...new Set(myTimetable.map(t => t.unit_id))];
+  return acadStore.units.filter(u => myUnitIds.includes(u.id));
 });
 
-// 1. Initialize Webcam
+// 🔥 FIX 2: When a Unit is selected, only show Classes linked to that Unit!
+const myClasses = computed(() => {
+  if (!selUnit.value) return [];
+  const relatedTimetable = acadStore.timetable.filter(t => 
+    t.lecturer_id === authStore.user.id && t.unit_id === selUnit.value
+  );
+  const classIds = [...new Set(relatedTimetable.map(t => t.cohort_id))];
+  return acadStore.classes.filter(c => classIds.includes(c.id));
+});
+
+// Auto-fill the Hall when Unit & Class are selected
+watch([selUnit, selClass], ([newUnit, newClass]) => {
+  if (newUnit && newClass) {
+    const entry = acadStore.timetable.find(t => 
+      t.unit_id === newUnit && t.cohort_id === newClass && t.lecturer_id === authStore.user.id
+    );
+    if (entry && !selHall.value) {
+      selHall.value = entry.hall_id;
+    }
+  }
+});
+
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream;
-    }
-  } catch (err) {
-    console.error("Camera error:", err);
-    alert("Could not access the camera. Please allow camera permissions.");
-  }
+    if (videoRef.value) videoRef.value.srcObject = stream;
+  } catch (err) { alert("Camera access denied."); }
 }
 
-// 2. Stop Webcam
 function stopCamera() {
   if (scanTimer) clearInterval(scanTimer);
   if (stream) {
@@ -61,52 +83,38 @@ async function startSession() {
     alert("Please select a unit and a class.");
     return;
   }
-
   try {
     const { data } = await api.post("/academic/sessions", {
-      unit_id: parseInt(selUnit.value),
-      cohort_id: parseInt(selClass.value), 
-      hall_id: selHall.value ? parseInt(selHall.value) : null,
-      lecturer_id: authStore.user.id // <--- ADD THIS LINE
+      unit_id: selUnit.value,
+      cohort_id: selClass.value, 
+      hall_id: selHall.value || null,
+      lecturer_id: authStore.user.id 
     });
-    // Handle standard dict or SQLAlchemy object return
     sessionId.value = data.id || data.session_id; 
-    
     scanning.value = true;
     recognized.value = [];
     scannedCount.value = 0;
-
-    // Start the live video feed
+    
     await startCamera();
-
-    // 3. Take a snapshot every 3 seconds and send it to the backend AI
     scanTimer = setInterval(captureAndScan, 3000);
-
-  } catch (error) {
-    console.error("Failed to start session:", error);
-    alert(error.response?.data?.detail || "Could not start session. Does the /academic/sessions POST route exist in Python?");
-  }
+  } catch (error) { alert("Could not start session."); }
 }
+
 async function captureAndScan() {
   if (!videoRef.value || !canvasRef.value || !sessionId.value) return;
 
   const video = videoRef.value;
   const canvas = canvasRef.value;
   const ctx = canvas.getContext("2d");
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
 
   const fd = new FormData();
-
-  // 🔥 FIX: Capture 3 frames with a 300ms delay to detect micro-movements
+  
   for (let i = 0; i < 3; i++) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.8));
-    
-    // Notice the key is "files" (plural) to match the backend!
-    if (blob) fd.append("files", blob, `frame_${i}.jpg`); 
-    
+    if (blob) fd.append("files", blob, `frame_${i}.jpg`);
     if (i < 2) await new Promise(r => setTimeout(r, 300)); 
   }
 
@@ -119,31 +127,32 @@ async function captureAndScan() {
       data.users_present.forEach(name => {
         const alreadyScanned = recognized.value.find(r => r.name === name);
         if (!alreadyScanned) {
-          recognized.value.unshift({ 
-            name: name, 
-            status: "Present", 
-            ts: new Date().toLocaleTimeString() 
-          });
+          recognized.value.unshift({ name: name, status: "Present", ts: new Date().toLocaleTimeString() });
           scannedCount.value++;
         }
       });
     }
+    
+    if (data.rejected && data.rejected.length > 0) {
+      data.rejected.forEach(name => {
+        const alreadyScanned = recognized.value.find(r => r.name === name);
+        if (!alreadyScanned) {
+          recognized.value.unshift({ name: name, status: "Rejected", ts: new Date().toLocaleTimeString() });
+        }
+      });
+    }
   } catch (e) {
-    if (e.response?.status !== 400) console.warn("Scan processing error:", e);
+    if (e.response?.status !== 400) console.warn("Scan error:", e);
   }
 }
 
 async function endSession() {
   stopCamera();
-  if (sessionId.value) {
-    // FIX: Hitting the correct Academic end session endpoint
-    await api.patch(`/academic/sessions/${sessionId.value}/end`).catch(() => {});
-  }
+  if (sessionId.value) await api.patch(`/academic/sessions/${sessionId.value}/end`).catch(() => {});
   scanning.value = false;
   sessionId.value = null;
 }
 </script>
-
 <template>
   <BasePageHeading title="Attendance Scanner" subtitle="Live Biometric Feed"/>
 
@@ -155,14 +164,14 @@ async function endSession() {
             <label class="form-label fw-medium">Unit *</label>
             <select v-model="selUnit" class="form-select" :disabled="scanning">
               <option value="">— Select unit —</option>
-              <option v-for="u in acadStore.units" :key="u.id" :value="u.id">{{ u.name }}</option>
+              <option v-for="u in myUnits" :key="u.id" :value="u.id">{{ u.name }}</option>
             </select>
           </div>
           <div class="mb-3">
             <label class="form-label fw-medium">Class / Cohort *</label>
-            <select v-model="selClass" class="form-select" :disabled="scanning">
+            <select v-model="selClass" class="form-select" :disabled="scanning || !selUnit">
               <option value="">— Select class —</option>
-              <option v-for="c in acadStore.classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+              <option v-for="c in myClasses" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
           <div class="mb-4">
@@ -192,7 +201,6 @@ async function endSession() {
                       position:relative;overflow:hidden;margin-bottom:16px;display:flex;align-items:center;justify-content:center;">
             
             <video ref="videoRef" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;" v-show="scanning"></video>
-            
             <canvas ref="canvasRef" style="display: none;"></canvas>
 
             <div v-if="scanning" style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(65,90,32,.06),rgba(65,90,32,.06) 1px,transparent 1px,transparent 28px);pointer-events:none;"></div>
@@ -226,7 +234,7 @@ async function endSession() {
                 <div class="fw-semibold">{{ r.name }}</div>
               </div>
               <div class="text-end flex-shrink-0">
-                <div><span class="badge bg-success">{{ r.status }}</span></div>
+                <div><span class="badge" :class="r.status === 'Present' ? 'bg-success' : 'bg-danger'">{{ r.status }}</span></div>
                 <div class="text-muted" style="font-size:10px;">{{ r.ts }}</div>
               </div>
             </div>

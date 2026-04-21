@@ -106,13 +106,13 @@ async function handleDelete(u) {
       :current-page="usersStore.meta.page"
       :total-pages="Math.ceil(usersStore.meta.total / usersStore.meta.limit) || 1"
       :actions="tableActions"
-      @view="openView"
+      
+      :show-create="false" @view="openView"
       @edit="openEdit"
       @delete="handleDelete"
       @change-page="(p) => usersStore.fetchUsers({ role: 'LECTURER', page: p })"
     />
   </div>
-
   <BaseModal :show-modal="showModal" :title="viewMode ? 'Lecturer Details' : editing ? 'Edit Lecturer' : 'Add New Lecturer'" @close="showModal = false">
     <div class="row g-3">
       <div class="col-md-6">
