@@ -90,6 +90,7 @@ async function downloadPDF(sessionId) {
       :data="reportData"
       :loading="attendanceStore.loading"
       :show-create="false"
+      :actions="[]"
     >
       <template #cell-stats="{ row }">
         <div class="d-flex align-items-center gap-2">

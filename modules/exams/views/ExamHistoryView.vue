@@ -15,7 +15,6 @@ const columns = [
 
 onMounted(async () => {
   try {
-    // Hits /exams/my-history directly
     const { data } = await api.get("/exams/my-history");
     myExams.value = data.items || data;
   } catch (e) {
@@ -58,6 +57,7 @@ async function exportMyExamPDF() {
         :data="myExams"
         :loading="loading"
         :show-create="false"
+        :actions="[]"
       >
         <template #cell-time="{ value }">
           <span class="text-muted fw-medium" style="font-size: 13px;">

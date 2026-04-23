@@ -9,16 +9,13 @@ const { confirmAction } = useAlert();
 const store = useAcademicSetupStore();
 const authStore = useAuthStore();
 
-// UI State
 const showModal = ref(false);
 const editing = ref(null);
 const saving = ref(false);
 const viewMode = ref(false);
 
-// Form State
 const form = ref({ code: "", name: "", description: "" });
 
-// Table Columns
 const columns = [
   { field: "code", header: "Code", width: "120px" },
   { field: "name", header: "Program Name" },
@@ -27,19 +24,9 @@ const columns = [
 
 onMounted(() => store.fetchPrograms());
 
-/**
- * Logic to show buttons based on permissions
- */
+// 🔥 FIX: Admin gets 3 actions, everyone else gets [] (no actions)
 const tableActions = computed(() => {
-  const actions = ['view'];
-  // Ensure we check permissions string accurately
-  if (authStore.userCan('programs:write')) {
-    actions.push('edit');
-  }
-  if (authStore.userCan('programs:delete')) {
-    actions.push('delete');
-  }
-  return actions;
+  return authStore.hasRole('ADMIN') ? ['view', 'edit', 'delete'] : [];
 });
 
 function openCreate() {
@@ -68,7 +55,6 @@ async function save() {
     showModal.value = false;
     return;
   }
-
   saving.value = true;
   try {
     if (editing.value) {
@@ -76,7 +62,6 @@ async function save() {
     } else {
       await store.createProgram(form.value);
     }
-
     showModal.value = false;
   } catch (error) {
     console.error("Save error:", error);
@@ -84,14 +69,13 @@ async function save() {
     saving.value = false;
   }
 }
+
 async function deactivate(p) {
   const result = await confirmAction(
     "Delete Program",
     `Are you sure you want to Delete "${p.name}"?`
   );
-
   if (!result.isConfirmed) return;
-
   try {
     await store.deleteProgram(p.id);
   } catch (error) {
@@ -104,7 +88,7 @@ async function deactivate(p) {
   <BasePageHeading title="Programs" subtitle="Degree and diploma programmes offered">
     <template #extra>
       <button
-        v-if="authStore.userCan('programs:write')"
+        v-if="authStore.hasRole('ADMIN')"
         class="btn btn-primary btn-sm"
         @click="openCreate"
       >
@@ -123,6 +107,7 @@ async function deactivate(p) {
       :current-page="store.meta.programs.page"
       :total-pages="Math.ceil(store.meta.programs.total / store.meta.programs.limit)"
       :actions="tableActions"
+      :show-create="false" 
       @create="openCreate" 
       @view="openView"
       @edit="openEdit"

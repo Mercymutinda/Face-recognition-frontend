@@ -70,6 +70,7 @@ async function exportGlobalExamPDF() {
         :data="mappedLogs" 
         :loading="examsStore.loading"
         :show-create="false"
+        :actions="[]"
       >
         <template #cell-time="{ value }">
           <span style="font-size: 13px;" class="text-muted">{{ new Date(value).toLocaleString() }}</span>

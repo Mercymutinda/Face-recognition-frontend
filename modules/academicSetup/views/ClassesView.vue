@@ -14,7 +14,6 @@ const editing = ref(null);
 const saving = ref(false);
 const viewMode = ref(false);
 
-// Form State aligned with Backend: name, program_id, year_of_study
 const form = ref({ name: "", program_id: null, year_of_study: 1 });
 
 const columns = [
@@ -23,11 +22,9 @@ const columns = [
   { field: "year_of_study", header: "Year", width: "100px" },
 ];
 
+// 🔥 FIX: Admin gets 3 actions, everyone else gets [] (no actions)
 const tableActions = computed(() => {
-  const actions = ['view'];
-  if (authStore.userCan('classes:write')) actions.push('edit');
-  if (authStore.userCan('classes:delete')) actions.push('delete');
-  return actions;
+  return authStore.hasRole('ADMIN') ? ['view', 'edit', 'delete'] : [];
 });
 
 onMounted(() => {
@@ -81,6 +78,7 @@ async function handleDelete(c) {
       :current-page="store.meta.cohorts.page"
       :total-pages="Math.ceil(store.meta.cohorts.total / store.meta.cohorts.limit)"
       :actions="tableActions"
+      :show-create="authStore.hasRole('ADMIN')" 
       @create="openCreate" @view="openView" @edit="openEdit" @delete="handleDelete"
       @change-page="(p) => store.changePage('cohorts', p)"
     />

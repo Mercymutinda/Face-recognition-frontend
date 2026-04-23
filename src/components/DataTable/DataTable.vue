@@ -28,8 +28,18 @@ const props = defineProps({
 });
 
 const emit = defineEmits([
-  "create", "view", "edit", "delete", "manage", "toggleStatus", 
-  "ban", "manageGroups", "search", "change-page", "change-per-page", "change-sort",
+  "create",
+  "view",
+  "edit",
+  "delete",
+  "manage",
+  "toggleStatus",
+  "ban",
+  "manageGroups",
+  "search",
+  "change-page",
+  "change-per-page",
+  "change-sort",
 ]);
 </script>
 
@@ -54,14 +64,14 @@ const emit = defineEmits([
       :data="data"
       :loading="loading"
       :row-key="rowKey"
-      :actions="['view', 'edit', 'delete']"
+      :actions="actions"
       :action-icons="actionIcons"
       :empty-text="emptyText"
       :sort-by="sortBy"
       :sort-dir="sortDir"
       @view="emit('view', $event)"
       @edit="emit('edit', $event)"
-      @create="openCreate" 
+      @create="openCreate"
       @manage="emit('manage', $event)"
       @delete="emit('delete', $event)"
       @toggleStatus="emit('toggleStatus', $event)"
@@ -72,10 +82,22 @@ const emit = defineEmits([
       <template #loading><slot name="loading" /></template>
       <template #empty><slot name="empty" /></template>
 
-      <template v-for="column in columns" :key="column.field" #[`cell-${column.field}`]="slotProps">
+      <template
+        v-for="column in columns"
+        :key="column.field"
+        #[`cell-${column.field}`]="slotProps"
+      >
         <slot :name="`cell-${column.field}`" v-bind="slotProps">
-          <template v-if="slotProps.value && typeof slotProps.value === 'object' && slotProps.value.label">
-            <span :class="`badge bg-${slotProps.value.theme || 'secondary'}`">{{ slotProps.value.label }}</span>
+          <template
+            v-if="
+              slotProps.value &&
+              typeof slotProps.value === 'object' &&
+              slotProps.value.label
+            "
+          >
+            <span :class="`badge bg-${slotProps.value.theme || 'secondary'}`">{{
+              slotProps.value.label
+            }}</span>
           </template>
           <template v-else>{{ slotProps.value }}</template>
         </slot>

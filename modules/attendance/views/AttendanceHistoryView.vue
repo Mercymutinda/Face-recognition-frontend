@@ -51,6 +51,7 @@ async function exportMyAttendancePDF() {
         :data="attendanceStore.history"
         :loading="attendanceStore.loading"
         :show-create="false"
+        :actions="[]"
       >
         <template #cell-time="{ value }">
           <span class="text-muted fw-medium" style="font-size: 13px;">

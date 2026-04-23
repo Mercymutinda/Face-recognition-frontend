@@ -80,10 +80,7 @@ function exportLogsCSV() {
         :data="mappedSessions"
         :loading="attendanceStore.loading"
         :show-create="false"
-        :actions="['manage']" 
-        :action-icons="{ manage: 'fa fa-stop-circle text-danger' }"
-        :action-labels="{ manage: 'End Session' }"
-        @manage="handleManage"
+        :actions="[]"
       >
         <template #cell-started_at="{ value }">
           <span class="text-muted fw-medium" style="font-size:12px;">{{ fmt(value) }}</span>

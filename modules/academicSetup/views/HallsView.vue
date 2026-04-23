@@ -25,8 +25,7 @@ const columns = [
 
 const tableActions = computed(() => {
   const actions = ['view'];
-  if (authStore.userCan('halls:write')) actions.push('edit');
-  if (authStore.userCan('halls:delete')) actions.push('delete');
+  if (authStore.hasRole('ADMIN')) actions.push('edit', 'delete');
   return actions;
 });
 
@@ -72,7 +71,7 @@ async function handleDelete(h) {
 <template>
   <BasePageHeading title="Lecture Halls" subtitle="Manage venues and camera setups">
     <template #extra>
-      <button v-if="authStore.userCan('halls:write')" class="btn btn-primary btn-sm" @click="openCreate">
+      <button v-if="authStore.hasRole('ADMIN')" class="btn btn-primary btn-sm" @click="openCreate">
         <i class="fa fa-plus me-1"></i> New Hall
       </button>
     </template>

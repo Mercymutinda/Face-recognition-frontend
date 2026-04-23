@@ -57,6 +57,7 @@ async function exportLecturerExamPDF() {
         :data="examsStore.logs"
         :loading="examsStore.loading"
         :show-create="false"
+        :actions="[]"
       >
         <template #cell-time="{ value }">
           <span style="font-size: 13px;" class="text-muted fw-medium">{{ new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short'}) }}</span>
