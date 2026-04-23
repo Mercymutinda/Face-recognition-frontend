@@ -1,5 +1,17 @@
 .env
+# AI Models
+insightface_models/
+*.onnx
+*.zip
 
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# Docker
+volumes/
 # Logs
 logs
 *.log

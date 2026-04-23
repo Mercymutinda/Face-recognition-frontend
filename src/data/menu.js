@@ -120,6 +120,7 @@ export default {
     },
     { name: "Exam Auth", to: "exam-auth", icon: "fa fa-user-check" },
     { name: "Reports", to: "reports", icon: "fa fa-chart-line" },
+    {name: "Exam Reports", to: "exam-reports", icon: "fa fa-file-invoice" },
   ],
 
   student: [

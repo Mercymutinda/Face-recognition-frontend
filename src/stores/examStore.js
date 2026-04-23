@@ -1,50 +1,37 @@
-// src/stores/examsStore.js
 import { defineStore } from "pinia";
-import { examsService } from "@/services/examsService";
+import api from "@/utils/api";
 import { useAlert } from "@/composables/alerts";
 
 export const useExamsStore = defineStore("exams", {
   state: () => ({
-    activeExams: [],
-    logs: [],
+    logs: [], // Used by Admin Exam Logs
     loading: false,
   }),
 
   actions: {
-    async createExam(payload) {
-      return await examsService.createExam(payload);
-    },
-
-    async fetchActiveExams() {
-      this.loading = true;
-      try {
-        const { data } = await examsService.getActiveExams();
-        this.activeExams = data.items || data;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async endExam(id) {
-      await examsService.endExam(id);
-      await this.fetchActiveExams();
-    },
-
-    async authenticateStudent(id, payload) {
-      return await examsService.authenticateStudent(id, payload);
-    },
-
+    // Hits: GET /exams/logs
     async fetchLogs(params = {}) {
       this.loading = true;
-      const { toastError } = useAlert();
       try {
-        const { data } = await examsService.getExamLogs(params);
+        const { data } = await api.get("/exams/logs", { params });
         this.logs = data.items || data;
       } catch (err) {
-        toastError("Error", "Failed to fetch exam logs.");
+        useAlert().toastError("Error", "Failed to fetch exam logs.");
       } finally {
         this.loading = false;
       }
     },
-  },
+    // Hits: GET /exams/lecturer-logs
+    async fetchLecturerLogs(params = {}) {
+      this.loading = true;
+      try {
+        const { data } = await api.get("/exams/lecturer-logs", { params });
+        this.logs = data.items || data;
+      } catch (err) {
+        useAlert().toastError("Error", "Failed to fetch lecturer exam logs.");
+      } finally {
+        this.loading = false;
+      }
+    },
+  }
 });

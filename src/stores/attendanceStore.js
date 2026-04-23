@@ -1,59 +1,36 @@
 import { defineStore } from "pinia";
-import { attendanceService } from "@/services/attendanceService";
+import api from "@/utils/api";
 import { useAlert } from "@/composables/alerts";
 
 export const useAttendanceStore = defineStore("attendance", {
   state: () => ({
-    history: [],
-    userAttendance: [],
-    sessions: [], // Added sessions state
+    sessions: [], // Used by Admin Attendance Logs
     loading: false,
   }),
 
   actions: {
-    async scanFace(payload) {
-      return await attendanceService.scanFaces(payload);
-    },
-
-    async fetchHistory(params = {}) {
-      this.loading = true;
-      try {
-        const { data } = await attendanceService.getHistory(params);
-        this.history = data.items || data;
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async fetchUserAttendance(userId) {
-      const { data } = await attendanceService.getUserAttendance(userId);
-      this.userAttendance = data;
-    },
-
-    // Added Action: Fetch Sessions
+    // Hits: GET /academic/sessions
     async fetchSessions(params = {}) {
       this.loading = true;
       try {
-        const { data } = await attendanceService.getSessions(params);
+        const { data } = await api.get("/academic/sessions", { params });
         this.sessions = data.items || data;
       } catch (err) {
-        const { toastError } = useAlert();
-        toastError("Error", "Failed to fetch attendance sessions.");
+        useAlert().toastError("Error", "Failed to fetch attendance sessions.");
       } finally {
         this.loading = false;
       }
     },
 
-    // Added Action: End Session
+    // Hits: PATCH /academic/sessions/{session_id}/end
     async endSession(sessionId) {
-      const { toastSuccess, toastError } = useAlert();
       try {
-        await attendanceService.endSession(sessionId);
-        toastSuccess("Success", "Session successfully ended.");
-        await this.fetchSessions(); // Refresh the table
+        await api.patch(`/academic/sessions/${sessionId}/end`);
+        useAlert().toastSuccess("Success", "Session successfully ended.");
+        await this.fetchSessions(); 
       } catch (err) {
-        toastError("Error", "Could not end session.");
+        useAlert().toastError("Error", "Could not end session.");
       }
     }
-  },
+  }
 });

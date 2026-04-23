@@ -21,6 +21,13 @@ const examRoutes = [
     // Restricted to Students viewing their own history
     meta: { requiresRole: "STUDENT" }, 
   },
+  {
+      path: "exam/exam-reports",
+      name: "exam-reports",
+      component: () => import("./views/LecturerExamReportsView.vue"),
+      meta: { requiresRole: "LECTURER" },
+  },
+
 ];
 
 export default examRoutes;

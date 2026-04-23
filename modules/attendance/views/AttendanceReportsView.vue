@@ -1,29 +1,21 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { onMounted, computed } from "vue";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useAcademicSetupStore } from "@/stores/academicStore";
 import DataTable from "@/components/DataTable/DataTable.vue";
-import api from "@/utils/api";
 
 const attendanceStore = useAttendanceStore();
 const acadStore = useAcademicSetupStore();
-const rawHistory = ref([]);
 
 onMounted(async () => {
-  attendanceStore.fetchSessions();
+  // Consolidate calls to matches your backend endpoints
+  attendanceStore.fetchSessions(); 
   acadStore.fetchUnits();
   acadStore.fetchClasses();
-
-  // Fetch the raw attendance logs to count actual presents
-  try {
-    const { data } = await api.get("/attendance/history");
-    rawHistory.value = data || [];
-  } catch (e) {
-    console.error("Could not fetch attendance history", e);
-  }
 });
 
 const columns = [
+  { field: "id", header: "Session ID" },
   { field: "date", header: "Date" },
   { field: "unit", header: "Unit" },
   { field: "cohort", header: "Class" },
@@ -32,74 +24,79 @@ const columns = [
 
 const reportData = computed(() => {
   if (!attendanceStore.sessions) return [];
-
   return attendanceStore.sessions.map((s) => {
-    // Look up human-readable names
-    const unitName =
-      acadStore.units.find((u) => u.id === s.unit_id)?.name ||
-      `Unit #${s.unit_id}`;
-    const className =
-      acadStore.classes.find((c) => c.id === s.cohort_id)?.name ||
-      `Cohort #${s.cohort_id}`;
-
-    // Format Date
-    const date = s.start_time
-      ? new Date(s.start_time).toLocaleDateString("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })
-      : "Unknown";
-
-    // Count REAL presents by matching the session_id to the attendance logs
-    const presents = rawHistory.value.filter(
-      (log) => log.session_id === s.id
-    ).length;
-
-    // For the total, we ideally want the cohort size. We will default to 30 if unknown.
-    // If your backend adds student_count to the cohort object, replace 30 with that value.
-    const total = 30;
-    const percentage = total > 0 ? Math.round((presents / total) * 100) : 0;
+    const unitObj = acadStore.units.find((u) => u.id === s.unit_id);
+    const classObj = acadStore.classes.find((c) => c.id === s.cohort_id);
+    
+    // 🔥 FIX: Safely check all possible time fields from the backend
+    const timeVal = s.start_time || s.timestamp || s.created_at;
+    const dateStr = timeVal 
+      ? new Date(timeVal).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+      : "—";
 
     return {
       id: s.id,
-      date,
-      unit: unitName,
-      cohort: className,
-      present: presents,
-      total,
-      percentage,
+      date: dateStr, // Now uses the safe date!
+      unit: unitObj?.name || `Unit #${s.unit_id}`,
+      cohort: classObj?.name || `Class #${s.cohort_id}`,
+      present: s.present_count || 0, 
+      total: classObj?.student_count || 30,
+      percentage: s.attendance_percentage || 0
     };
   });
 });
+
+function exportReport() {
+  const csvContent = "data:text/csv;charset=utf-8," 
+    + "ID,Date,Unit,Class,Percentage\n"
+    + reportData.value.map(r => `${r.id},${r.date},${r.unit},${r.cohort},${r.percentage}%`).join("\n");
+  
+  const link = document.createElement("a");
+  link.setAttribute("href", encodeURI(csvContent));
+  link.setAttribute("download", "attendance_report.csv");
+  document.body.appendChild(link);
+  link.click();
+}
+async function downloadPDF(sessionId) {
+  try {
+    const response = await api.get(`/reports/attendance/session/${sessionId}`, {
+      responseType: 'blob' // CRITICAL: Tells axios to handle binary data
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `attendance_session_${sessionId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+  } catch (e) {
+    alert("Could not generate PDF report.");
+  }
+}
 </script>
 
 <template>
-  <BasePageHeading
-    title="Attendance Reports"
-    subtitle="Overview of class attendance metrics"
-  />
+  <BasePageHeading title="Attendance Reports" subtitle="Detailed session logs">
+    <template #extra>
+      <button class="btn btn-sm btn-alt-primary" @click="exportReport">
+        <i class="fa fa-download me-1"></i> Export CSV
+      </button>
+    </template>
+  </BasePageHeading>
   <div class="content">
     <DataTable
-      title="Session Summaries"
+      title="Attendance History"
       :columns="columns"
       :data="reportData"
       :loading="attendanceStore.loading"
       :show-create="false"
-
     >
       <template #cell-stats="{ row }">
-        <div class="d-flex align-items-center gap-3">
-          <div class="progress" style="width: 100px; height: 6px">
-            <div
-              class="progress-bar"
-              :class="row.percentage >= 75 ? 'bg-success' : 'bg-warning'"
-              :style="{ width: row.percentage + '%' }"
-            ></div>
+        <div class="d-flex align-items-center gap-2">
+          <div class="progress flex-grow-1" style="height: 6px; min-width: 80px;">
+            <div class="progress-bar bg-success" :style="{ width: row.percentage + '%' }"></div>
           </div>
-          <span class="fs-sm fw-medium"
-            >{{ row.present }} / {{ row.total }} ({{ row.percentage }}%)</span
-          >
+          <span class="small fw-bold">{{ row.percentage }}%</span>
         </div>
       </template>
     </DataTable>
