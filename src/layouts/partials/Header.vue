@@ -1,62 +1,61 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useTemplateStore } from "@/stores/template";
 import { useAuthStore } from "@/stores/authStore";
 
-// Grab example data
-// import notifications from "@/data/notifications";
-
-// Main store and Router
 const store = useTemplateStore();
 const router = useRouter();
 const authStore = useAuthStore();
-// Reactive variables
 const baseSearchTerm = ref("");
 
-// On form search submit functionality
+// 🔥 DYNAMIC USER DATA FROM BACKEND
+const userFirstName = computed(() => {
+  const name = authStore.user?.full_name || authStore.user?.username || "User";
+  return name.split(" ")[0]; // Gets the first name
+});
+
+const userFullName = computed(() => {
+  return authStore.user?.full_name || authStore.user?.username || "System User";
+});
+
+const userRole = computed(() => {
+  return authStore.primaryRole || "GUEST";
+});
+
 function onSubmitSearch() {
   router.push("/backend/pages/generic/search?" + baseSearchTerm.value);
 }
 
-// When ESCAPE key is hit close the header search section
 function eventHeaderSearch(event) {
   if (event.which === 27) {
     event.preventDefault();
     store.headerSearch({ mode: "off" });
   }
 }
-// Header.vue script section
+
 const onLockAccount = async () => {
   await authStore.lockAccount(); 
-  router.push({ name: "auth-lock3" }); // ADD THIS LINE!
+  router.push({ name: "auth-lock3" }); 
 };
-// Attach ESCAPE key event listener
-onMounted(() => {
-  document.addEventListener("keydown", eventHeaderSearch);
-});
-// Header.vue
+
 async function onLogout() {
-  await authStore.logout(); // Correct casing to match authStore.js
+  await authStore.logout(); 
   router.push({ name: 'auth-signin3' });
 }
-// Remove keydown event listener
-onUnmounted(() => {
-  document.removeEventListener("keydown", eventHeaderSearch);
-});
+
+onMounted(() => document.addEventListener("keydown", eventHeaderSearch));
+onUnmounted(() => document.removeEventListener("keydown", eventHeaderSearch));
 </script>
 
 <template>
-  <!-- Header -->
   <header id="page-header">
     <slot>
-      <!-- Header Content -->
       <div class="content-header">
         <slot name="content">
           <!-- Left Section -->
           <div class="d-flex align-items-center">
             <slot name="content-left">
-              <!-- Toggle Sidebar -->
               <button
                 type="button"
                 class="btn btn-sm btn-alt-secondary me-2 d-lg-none"
@@ -64,9 +63,7 @@ onUnmounted(() => {
               >
                 <i class="fa fa-fw fa-bars"></i>
               </button>
-              <!-- END Toggle Sidebar -->
 
-              <!-- Open Search Section (visible on smaller screens) -->
               <button
                 type="button"
                 class="btn btn-sm btn-alt-secondary d-md-none"
@@ -74,20 +71,14 @@ onUnmounted(() => {
               >
                 <i class="fa fa-fw fa-search"></i>
               </button>
-              <!-- END Open Search Section -->
 
-              <!-- Search Form (visible on larger screens) -->
-              <form
-                class="d-none d-md-inline-block"
-                @submit.prevent="onSubmitSearch"
-              >
+              <form class="d-none d-md-inline-block" @submit.prevent="onSubmitSearch">
                 <div class="input-group input-group-sm">
                   <input
                     type="text"
                     class="form-control form-control-alt"
                     placeholder="Search.."
                     id="page-header-search-input2"
-                    name="page-header-search-input2"
                     v-model="baseSearchTerm"
                   />
                   <span class="input-group-text border-0">
@@ -95,7 +86,6 @@ onUnmounted(() => {
                   </span>
                 </div>
               </form>
-              <!-- END Search Form -->
             </slot>
           </div>
           <!-- END Left Section -->
@@ -113,53 +103,39 @@ onUnmounted(() => {
                   aria-haspopup="true"
                   aria-expanded="false"
                 >
-                  <img
-                    class="rounded-circle"
-                    src="/assets/media/avatars/avatar10.jpg"
-                    alt="Header Avatar"
-                    style="width: 21px"
-                  />
-                  <span class="d-none d-sm-inline-block ms-2">John</span>
-                  <i
-                    class="fa fa-fw fa-angle-down d-none d-sm-inline-block opacity-50 ms-1 mt-1"
-                  ></i>
+                  <div 
+                    class="rounded-circle d-flex align-items-center justify-content-center text-white bg-primary fw-bold" 
+                    style="width: 21px; height: 21px; font-size: 10px;"
+                  >
+                    {{ userFirstName.charAt(0).toUpperCase() }}
+                  </div>
+                  <!-- 🔥 Dynamic First Name -->
+                  <span class="d-none d-sm-inline-block ms-2 fw-semibold">{{ userFirstName }}</span>
+                  <i class="fa fa-fw fa-angle-down d-none d-sm-inline-block opacity-50 ms-1 mt-1"></i>
                 </button>
                 <div
                   class="dropdown-menu dropdown-menu-md dropdown-menu-end p-0 border-0"
                   aria-labelledby="page-header-user-dropdown"
                 >
-                  <div
-                    class="p-3 text-center bg-body-light border-bottom rounded-top"
-                  >
-                    <img
-                      class="img-avatar img-avatar48 img-avatar-thumb"
-                      src="/assets/media/avatars/avatar10.jpg"
-                      alt="Header Avatar"
-                    />
-                    <p class="mt-2 mb-0 fw-medium">John Smith</p>
-                    <p class="mb-0 text-muted fs-sm fw-medium">Web Developer</p>
-                  </div>
-                  <div class="p-2">
-                    <a
-                      class="dropdown-item d-flex align-items-center justify-content-between"
-                      href="javascript:void(0)"
+                  <div class="p-3 text-center bg-body-light border-bottom rounded-top">
+                    <div 
+                      class="img-avatar img-avatar48 img-avatar-thumb d-flex align-items-center justify-content-center mx-auto text-white bg-primary fw-bold fs-3"
                     >
-                      <span class="fs-sm fw-medium">Inbox</span>
-                      <span class="badge rounded-pill bg-primary ms-2">3</span>
-                    </a>
+                      {{ userFirstName.charAt(0).toUpperCase() }}
+                    </div>
+                    <!-- 🔥 Dynamic Full Name & Role -->
+                    <p class="mt-2 mb-0 fw-bold">{{ userFullName }}</p>
+                    <p class="mb-0 text-muted fs-sm fw-medium text-uppercase">{{ userRole }}</p>
+                  </div>
+                  
+                  <!-- 🔥 Removed Inbox & Settings, kept Profile -->
+                  <div class="p-2">
                     <RouterLink
                       :to="{ name: 'my-profile' }"
                       class="dropdown-item d-flex align-items-center justify-content-between"
                     >
-                      <span class="fs-sm fw-medium">Profile</span>
-                      <span class="badge rounded-pill bg-primary ms-2">1</span>
+                      <span class="fs-sm fw-medium"><i class="fa fa-user me-2 opacity-50"></i> My Profile</span>
                     </RouterLink>
-                    <a
-                      class="dropdown-item d-flex align-items-center justify-content-between"
-                      href="javascript:void(0)"
-                    >
-                      <span class="fs-sm fw-medium">Settings</span>
-                    </a>
                   </div>
                   <div role="separator" class="dropdown-divider m-0"></div>
                   <div class="p-2">
@@ -168,29 +144,24 @@ onUnmounted(() => {
                       @click.prevent="onLockAccount"
                       class="dropdown-item d-flex align-items-center justify-content-between"
                     >
-                      <span class="fs-sm fw-medium">Lock Account</span>
+                      <span class="fs-sm fw-medium"><i class="fa fa-lock me-2 opacity-50"></i> Lock Account</span>
                     </a>
                     <a
                       href="#"
                       @click.prevent="onLogout"
-                      class="dropdown-item d-flex align-items-center justify-content-between"
+                      class="dropdown-item d-flex align-items-center justify-content-between text-danger"
                     >
-                      <span class="fs-sm fw-medium">Log Out</span>
+                      <span class="fs-sm fw-medium"><i class="fa fa-sign-out-alt me-2 opacity-50"></i> Log Out</span>
                     </a>
                   </div>
                 </div>
               </div>
               <!-- END User Dropdown -->
-
-              <!-- Notifications Dropdown -->
-
-              <!-- END Notifications Dropdown -->
             </slot>
           </div>
           <!-- END Right Section -->
         </slot>
       </div>
-      <!-- END Header Content -->
 
       <!-- Header Search -->
       <div
@@ -212,8 +183,6 @@ onUnmounted(() => {
                 type="text"
                 class="form-control"
                 placeholder="Search or hit ESC.."
-                id="page-header-search-input"
-                name="page-header-search-input"
                 v-model="baseSearchTerm"
               />
             </div>
@@ -234,8 +203,6 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-      <!-- END Header Loader -->
     </slot>
   </header>
-  <!-- END Header -->
 </template>

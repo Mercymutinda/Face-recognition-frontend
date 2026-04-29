@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useAcademicSetupStore } from "@/stores/academicStore";
 import { useAuthStore } from "@/stores/authStore"; 
 import api from "@/utils/api";
@@ -26,11 +26,42 @@ onMounted(() =>
     acadStore.fetchUnits(),
     acadStore.fetchHalls(),
     acadStore.fetchClasses(),
+    acadStore.fetchTimetable(), // 🔥 Added to fetch timetable relationships
   ])
 );
 
 onUnmounted(() => {
   stopCamera();
+});
+
+// 🔥 FIX 1: Only show Units assigned to this Lecturer in the Timetable
+const myUnits = computed(() => {
+  if (!acadStore.timetable.length) return [];
+  const myTimetable = acadStore.timetable.filter(t => t.lecturer_id === authStore.user.id);
+  const myUnitIds = [...new Set(myTimetable.map(t => t.unit_id))];
+  return acadStore.units.filter(u => myUnitIds.includes(u.id));
+});
+
+// 🔥 FIX 2: When a Unit is selected, only show Classes linked to that Unit!
+const myClasses = computed(() => {
+  if (!selUnit.value) return [];
+  const relatedTimetable = acadStore.timetable.filter(t => 
+    t.lecturer_id === authStore.user.id && t.unit_id === selUnit.value
+  );
+  const classIds = [...new Set(relatedTimetable.map(t => t.cohort_id))];
+  return acadStore.classes.filter(c => classIds.includes(c.id));
+});
+
+// 🔥 FIX 3: Auto-fill the Hall when Unit & Class are selected
+watch([selUnit, selClass], ([newUnit, newClass]) => {
+  if (newUnit && newClass) {
+    const entry = acadStore.timetable.find(t => 
+      t.unit_id === newUnit && t.cohort_id === newClass && t.lecturer_id === authStore.user.id
+    );
+    if (entry && !selHall.value) {
+      selHall.value = entry.hall_id;
+    }
+  }
 });
 
 async function startCamera() {
@@ -101,13 +132,11 @@ async function captureAndAuth() {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    // 🔥 FIX: Loop through the array of results returned by the backend
     if (data && data.results) {
       data.results.forEach((res) => {
         const existing = results.value.find((r) => r.reg === res.reg_no);
         
         if (!existing) {
-          // Add new student to the UI log
           results.value.unshift({
             name: res.student_name,
             reg: res.reg_no,
@@ -117,7 +146,6 @@ async function captureAndAuth() {
             ts: new Date().toLocaleTimeString(),
           });
         } else if (existing.status === 'Flagged' && res.status === 'Verified') {
-          // If they were flagged, but just got verified, update their badge in the UI!
           existing.status = 'Verified';
           existing.match = res.match;
           existing.ts = new Date().toLocaleTimeString();
@@ -128,7 +156,6 @@ async function captureAndAuth() {
     if (e.response?.status !== 400) console.warn(e);
   }
 }
-
 
 async function stopAuth() {
   stopCamera();
@@ -153,9 +180,9 @@ const statusBadge = (s) =>
     Unknown: "bg-dark text-white", 
   })[s] || "bg-secondary";
 
-
 const pct = (v) => (v ? (v * 100).toFixed(1) + "%" : "0%");
 </script>
+
 <template>
   <BasePageHeading title="Exam Authentication" subtitle="Live Biometric Exam Verification"/>
 
@@ -164,21 +191,24 @@ const pct = (v) => (v ? (v * 100).toFixed(1) + "%" : "0%");
 
       <div class="col-lg-5">
         <BaseBlock title="Session Configuration">
+          <!-- 🔥 Updated Select for Units -->
           <div class="mb-3">
             <label class="form-label fw-medium">Unit / Paper *</label>
             <select v-model="selUnit" class="form-select" :disabled="phase === 'scanning'">
               <option value="">— Select unit —</option>
-              <option v-for="u in acadStore.units" :key="u.id" :value="u.id">{{ u.name }}</option>
+              <option v-for="u in myUnits" :key="u.id" :value="u.id">{{ u.name }}</option>
             </select>
           </div>
           
+          <!-- 🔥 Updated Select for Classes -->
           <div class="mb-3">
             <label class="form-label fw-medium">Class / Cohort *</label>
-            <select v-model="selClass" class="form-select" :disabled="phase === 'scanning'">
+            <select v-model="selClass" class="form-select" :disabled="phase === 'scanning' || !selUnit">
               <option value="">— Select class —</option>
-              <option v-for="c in acadStore.classes" :key="c.id" :value="c.id">{{ c.name }}</option>
+              <option v-for="c in myClasses" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
+          
           <div class="mb-4">
             <label class="form-label fw-medium">Exam Hall</label>
             <select v-model="selHall" class="form-select" :disabled="phase === 'scanning'">
@@ -187,7 +217,6 @@ const pct = (v) => (v ? (v * 100).toFixed(1) + "%" : "0%");
             </select>
           </div>
         
-
           <div style="width:100%;height:300px;background:#060d04;border-radius:10px;position:relative;overflow:hidden;margin-bottom:16px;">
             <video ref="videoRef" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;" v-show="phase === 'scanning'"></video>
             
